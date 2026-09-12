@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+#include "FlightDynamics/C152ControlSurfaceModel.h"
 #include "C152AircraftPawn.generated.h"
 
 class UCameraComponent;
@@ -141,4 +142,6 @@ private:
 	bool bShowControlInputDebug = true;
 
 	float ThrottleRateCommand = 0.0f;
+
+	C152::FlightDynamics::FC152ControlSurfaceModel ControlSurfaceModel;
 };

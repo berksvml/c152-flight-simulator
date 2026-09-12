@@ -46,6 +46,8 @@ void AC152AircraftPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
+	ControlSurfaceModel.Reset();
+
 	UE_LOG(LogTemp, Log, TEXT("C152AircraftPawn initialized."));
 }
 
@@ -59,15 +61,38 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 		0.0f,
 		1.0f);
 
+	C152::FlightDynamics::FControlCommand Command;
+	Command.Pitch =
+		static_cast<double>(ControlInput.PitchCommand);
+	Command.Roll =
+		static_cast<double>(ControlInput.RollCommand);
+	Command.Yaw =
+		static_cast<double>(ControlInput.YawCommand);
+	Command.Throttle =
+		static_cast<double>(ControlInput.ThrottleCommand);
+
+	ControlSurfaceModel.Update(
+		Command,
+		static_cast<double>(DeltaTime));
+
+	const C152::FlightDynamics::FControlSurfaceState& SurfaceState =
+		ControlSurfaceModel.GetState();
+
 #if !UE_BUILD_SHIPPING
 	if (bShowControlInputDebug && GEngine)
 	{
 		const FString DebugText = FString::Printf(
-			TEXT("Pitch: %.2f | Roll: %.2f | Yaw: %.2f | Throttle: %.2f"),
+			TEXT(
+				"Input  P: %.2f | R: %.2f | Y: %.2f | T: %.2f\n"
+				"Surface  Elevator: %.1f deg | Aileron: %.1f deg | "
+				"Rudder: %.1f deg"),
 			ControlInput.PitchCommand,
 			ControlInput.RollCommand,
 			ControlInput.YawCommand,
-			ControlInput.ThrottleCommand);
+			ControlInput.ThrottleCommand,
+			FMath::RadiansToDegrees(SurfaceState.ElevatorRad),
+			FMath::RadiansToDegrees(SurfaceState.AileronRad),
+			FMath::RadiansToDegrees(SurfaceState.RudderRad));
 
 		GEngine->AddOnScreenDebugMessage(
 			static_cast<uint64>(GetUniqueID()),
