@@ -47,6 +47,7 @@ void AC152AircraftPawn::BeginPlay()
 	Super::BeginPlay();
 
 	ControlSurfaceModel.Reset();
+	SimulationClock.Reset();
 
 	UE_LOG(LogTemp, Log, TEXT("C152AircraftPawn initialized."));
 }
@@ -55,25 +56,44 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	ControlInput.ThrottleCommand = FMath::Clamp(
-		ControlInput.ThrottleCommand
-		+ ThrottleRateCommand * ThrottleChangeRate * DeltaTime,
-		0.0f,
-		1.0f);
+	const std::uint32_t SimulationStepCount =
+		SimulationClock.Advance(
+			static_cast<double>(DeltaTime));
 
-	C152::FlightDynamics::FControlCommand Command;
-	Command.Pitch =
-		static_cast<double>(ControlInput.PitchCommand);
-	Command.Roll =
-		static_cast<double>(ControlInput.RollCommand);
-	Command.Yaw =
-		static_cast<double>(ControlInput.YawCommand);
-	Command.Throttle =
-		static_cast<double>(ControlInput.ThrottleCommand);
+	const double FixedDeltaSeconds =
+		SimulationClock.GetFixedDeltaSeconds();
 
-	ControlSurfaceModel.Update(
-		Command,
-		static_cast<double>(DeltaTime));
+	for (
+		std::uint32_t StepIndex = 0U;
+		StepIndex < SimulationStepCount;
+		++StepIndex)
+	{
+		ControlInput.ThrottleCommand = FMath::Clamp(
+			ControlInput.ThrottleCommand
+			+ ThrottleRateCommand
+			* ThrottleChangeRate
+			* static_cast<float>(FixedDeltaSeconds),
+			0.0f,
+			1.0f);
+
+		C152::FlightDynamics::FControlCommand Command;
+
+		Command.Pitch =
+			static_cast<double>(ControlInput.PitchCommand);
+
+		Command.Roll =
+			static_cast<double>(ControlInput.RollCommand);
+
+		Command.Yaw =
+			static_cast<double>(ControlInput.YawCommand);
+
+		Command.Throttle =
+			static_cast<double>(ControlInput.ThrottleCommand);
+
+		ControlSurfaceModel.Update(
+			Command,
+			FixedDeltaSeconds);
+	}
 
 	const C152::FlightDynamics::FControlSurfaceState& SurfaceState =
 		ControlSurfaceModel.GetState();
@@ -83,9 +103,12 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 	{
 		const FString DebugText = FString::Printf(
 			TEXT(
+				"Simulation Steps: %u | Fixed dt: %.3f ms\n"
 				"Input  P: %.2f | R: %.2f | Y: %.2f | T: %.2f\n"
 				"Surface  Elevator: %.1f deg | Aileron: %.1f deg | "
 				"Rudder: %.1f deg"),
+			static_cast<unsigned int>(SimulationStepCount),
+			FixedDeltaSeconds * 1000.0,
 			ControlInput.PitchCommand,
 			ControlInput.RollCommand,
 			ControlInput.YawCommand,

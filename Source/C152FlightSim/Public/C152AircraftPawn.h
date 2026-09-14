@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "FlightDynamics/C152ControlSurfaceModel.h"
+#include "FlightDynamics/FixedStepClock.h"
 #include "C152AircraftPawn.generated.h"
 
 class UCameraComponent;
@@ -144,4 +145,5 @@ private:
 	float ThrottleRateCommand = 0.0f;
 
 	C152::FlightDynamics::FC152ControlSurfaceModel ControlSurfaceModel;
+	C152::FlightDynamics::FFixedStepClock SimulationClock;
 };
