@@ -4,6 +4,7 @@
 #include "GameFramework/Pawn.h"
 #include "FlightDynamics/C152ControlSurfaceModel.h"
 #include "FlightDynamics/FixedStepClock.h"
+#include "FlightDynamics/FlightDynamicsTypes.h"
 #include "C152AircraftPawn.generated.h"
 
 class UCameraComponent;
@@ -60,6 +61,9 @@ private:
 	void ResetRollInput(const FInputActionValue& Value);
 	void ResetYawInput(const FInputActionValue& Value);
 	void ResetThrottleRateInput(const FInputActionValue& Value);
+
+	void InitializeAircraftStateFromActorTransform();
+	void ApplyAircraftStateToActorTransform();
 
 	UPROPERTY(
 		VisibleAnywhere,
@@ -144,6 +148,7 @@ private:
 
 	float ThrottleRateCommand = 0.0f;
 
+	C152::FlightDynamics::FAircraftState AircraftState{};
 	C152::FlightDynamics::FC152ControlSurfaceModel ControlSurfaceModel;
 	C152::FlightDynamics::FFixedStepClock SimulationClock;
 };

@@ -106,6 +106,101 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 		Down.Equals(FVector(0.0, 0.0, -1.0)));
 
 	return true;
+
 }
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+		FAttitudeConversionTest,
+		"C152FlightSim.Integration.Coordinates.Attitude",
+		EAutomationTestFlags::EditorContext |
+		EAutomationTestFlags::EngineFilter)
+
+		bool FAttitudeConversionTest::RunTest(
+			const FString & Parameters)
+	{
+		using namespace C152;
+
+		(void)Parameters;
+
+		const double RollHalfAngle =
+			FMath::DegreesToRadians(30.0) * 0.5;
+
+		const FlightDynamics::FQuaternion CoreRoll{
+			std::cos(RollHalfAngle),
+			std::sin(RollHalfAngle),
+			0.0,
+			0.0
+		};
+
+		const FQuat UnrealRoll =
+			UnrealIntegration::FUnrealCoordinateAdapter::
+			BodyToNedAttitudeToUnrealRotation(CoreRoll);
+
+		const FRotator UnrealRollRotator =
+			UnrealRoll.Rotator();
+
+		TestTrue(
+			TEXT("Positive body roll remains positive in Unreal"),
+			FMath::IsNearlyEqual(
+				UnrealRollRotator.Roll,
+				30.0,
+				0.001));
+
+		const double PitchHalfAngle =
+			FMath::DegreesToRadians(20.0) * 0.5;
+
+		const FlightDynamics::FQuaternion CorePitch{
+			std::cos(PitchHalfAngle),
+			0.0,
+			std::sin(PitchHalfAngle),
+			0.0
+		};
+
+		const FQuat UnrealPitch =
+			UnrealIntegration::FUnrealCoordinateAdapter::
+			BodyToNedAttitudeToUnrealRotation(CorePitch);
+
+		TestTrue(
+			TEXT("Positive body pitch remains positive in Unreal"),
+			FMath::IsNearlyEqual(
+				UnrealPitch.Rotator().Pitch,
+				20.0,
+				0.001));
+
+		const double YawHalfAngle =
+			FMath::DegreesToRadians(40.0) * 0.5;
+
+		const FlightDynamics::FQuaternion CoreYaw{
+			std::cos(YawHalfAngle),
+			0.0,
+			0.0,
+			std::sin(YawHalfAngle)
+		};
+
+		const FQuat UnrealYaw =
+			UnrealIntegration::FUnrealCoordinateAdapter::
+			BodyToNedAttitudeToUnrealRotation(CoreYaw);
+
+		TestTrue(
+			TEXT("Positive body yaw remains positive in Unreal"),
+			FMath::IsNearlyEqual(
+				UnrealYaw.Rotator().Yaw,
+				40.0,
+				0.001));
+
+		const FlightDynamics::FQuaternion RoundTripYaw =
+			UnrealIntegration::FUnrealCoordinateAdapter::
+			UnrealRotationToBodyToNedAttitude(UnrealYaw);
+
+		TestTrue(
+			TEXT("Attitude conversion round trip"),
+			IsNear(RoundTripYaw.W, CoreYaw.W)
+			&& IsNear(RoundTripYaw.X, CoreYaw.X)
+			&& IsNear(RoundTripYaw.Y, CoreYaw.Y)
+			&& IsNear(RoundTripYaw.Z, CoreYaw.Z));
+
+		return true;
+	}
+
 
 #endif

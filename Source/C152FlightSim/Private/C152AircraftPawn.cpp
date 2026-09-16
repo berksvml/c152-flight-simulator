@@ -1,6 +1,8 @@
 
 #include "C152AircraftPawn.h"
 
+#include "Integration/UnrealAircraftStateAdapter.h"
+
 #include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/Engine.h"
@@ -49,6 +51,8 @@ void AC152AircraftPawn::BeginPlay()
 	ControlSurfaceModel.Reset();
 	SimulationClock.Reset();
 
+	InitializeAircraftStateFromActorTransform();
+
 	UE_LOG(LogTemp, Log, TEXT("C152AircraftPawn initialized."));
 }
 
@@ -94,6 +98,8 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 			Command,
 			FixedDeltaSeconds);
 	}
+
+	ApplyAircraftStateToActorTransform();
 
 	const C152::FlightDynamics::FControlSurfaceState& SurfaceState =
 		ControlSurfaceModel.GetState();
@@ -307,4 +313,26 @@ void AC152AircraftPawn::ResetThrottleRateInput(
 	const FInputActionValue& Value)
 {
 	ThrottleRateCommand = 0.0f;
+}
+
+void AC152AircraftPawn::InitializeAircraftStateFromActorTransform()
+{
+	C152::UnrealIntegration::FUnrealAircraftStateAdapter::
+		UpdateCorePoseFromUnrealTransform(
+			GetActorTransform(),
+			AircraftState);
+}
+
+void AC152AircraftPawn::ApplyAircraftStateToActorTransform()
+{
+	const FTransform TargetTransform =
+		C152::UnrealIntegration::FUnrealAircraftStateAdapter::
+		ToUnrealTransform(AircraftState);
+
+	SetActorLocationAndRotation(
+		TargetTransform.GetLocation(),
+		TargetTransform.GetRotation(),
+		false,
+		nullptr,
+		ETeleportType::TeleportPhysics);
 }

@@ -74,4 +74,43 @@ namespace C152::UnrealIntegration
 			-UnrealDirection.Z
 		};
 	}
+
+	FQuat
+		FUnrealCoordinateAdapter::BodyToNedAttitudeToUnrealRotation(
+			const FlightDynamics::FQuaternion& AttitudeBodyToNed)
+	{
+		FlightDynamics::FQuaternion NormalizedAttitude =
+			AttitudeBodyToNed;
+
+		NormalizedAttitude.Normalize();
+
+		FQuat UnrealRotation(
+			-NormalizedAttitude.X,
+			-NormalizedAttitude.Y,
+			NormalizedAttitude.Z,
+			NormalizedAttitude.W);
+
+		UnrealRotation.Normalize();
+
+		return UnrealRotation;
+	}
+
+	FlightDynamics::FQuaternion
+		FUnrealCoordinateAdapter::UnrealRotationToBodyToNedAttitude(
+			const FQuat& UnrealRotation)
+	{
+		FQuat NormalizedUnrealRotation = UnrealRotation;
+		NormalizedUnrealRotation.Normalize();
+
+		FlightDynamics::FQuaternion AttitudeBodyToNed{
+			NormalizedUnrealRotation.W,
+			-NormalizedUnrealRotation.X,
+			-NormalizedUnrealRotation.Y,
+			NormalizedUnrealRotation.Z
+		};
+
+		AttitudeBodyToNed.Normalize();
+
+		return AttitudeBodyToNed;
+	}
 }

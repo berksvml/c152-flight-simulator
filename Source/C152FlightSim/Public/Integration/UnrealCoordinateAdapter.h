@@ -36,5 +36,14 @@ namespace C152::UnrealIntegration
 		static FlightDynamics::FVector3
 			UnrealLocalDirectionToBodyFrd(
 				const FVector& UnrealDirection);
+
+		[[nodiscard]]
+		static FQuat BodyToNedAttitudeToUnrealRotation(
+			const FlightDynamics::FQuaternion& AttitudeBodyToNed);
+
+		[[nodiscard]]
+		static FlightDynamics::FQuaternion
+			UnrealRotationToBodyToNedAttitude(
+				const FQuat& UnrealRotation);
 	};
 }
