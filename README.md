@@ -2,7 +2,7 @@
 
 An independent flight simulation project developed from scratch by **Berk Sevimli** using C++ and Unreal Engine.
 
-> This project is under active development. The current implementation focuses on simulation architecture, deterministic execution, coordinate-system integration, and automated verification.
+> This project is under active development. Phase 1 of the simulation foundation is complete, including deterministic execution, coordinate-system integration, rigid-body 6DOF propagation, Unreal runtime integration, and automated verification.
 
 ## Project Overview
 
@@ -48,7 +48,10 @@ The simulation core owns:
 - Fixed-step execution
 - Control-surface state
 - Aircraft state
-- Future flight-dynamics and aircraft-system models
+- Aircraft mass and inertia properties
+- Rigid-body 6DOF state propagation
+- Applied body forces and moments
+- Future atmosphere, aerodynamics, propulsion, and aircraft-system models
 
 The Unreal integration layer converts between the simulation coordinate systems and Unreal Engine world coordinates.
 
@@ -105,12 +108,17 @@ Attitude is represented by a normalized quaternion describing the active rotatio
 - Unreal coordinate and attitude adapters
 - Aircraft-state to Unreal-transform conversion
 - Simulation facade through `FC152Simulation`
+- Aircraft mass and inertia tensor representation
+- Translational and rotational 6DOF propagation
+- Gravity and applied body-load support
+- Quaternion-based attitude propagation
 - Runtime state-to-Pawn integration
-- Unreal Automation tests
+- Phase 1 straight-line runtime verification scenario
+- 27 passing Unreal Automation tests
 
 ## Current Simulation Status
 
-The project currently provides the architecture and mathematical foundation required for rigid-body flight dynamics.
+Phase 1 of the simulation foundation is complete. The current implementation can propagate an aircraft state through the full rigid-body translational and rotational equations of motion at a deterministic 120 Hz simulation rate.
 
 Implemented:
 
@@ -120,39 +128,42 @@ Implemented:
 - Vector and quaternion mathematics
 - Aircraft-state storage
 - Coordinate conversion
+- Aircraft mass and inertia properties
+- Body-force and body-moment application
+- Gravity transformation from NED to body axes
+- Translational and rotational 6DOF state propagation
+- Quaternion attitude integration and normalization
+- Analytical constant-force, constant-moment, gravity, and constant-rate verification
 - Unreal runtime integration
 
 Not yet implemented:
 
-- Rigid-body 6DOF state propagation
-- Gravity model
 - Atmospheric model
 - Aerodynamic force and moment model
 - Propulsion model
 - Landing-gear dynamics
 - Detailed aircraft systems
 
-The aircraft is not yet expected to produce physically simulated flight.
+The current Unreal runtime scenario initializes the aircraft with a constant forward body velocity to verify the complete core-to-Unreal state path. It intentionally uses synthetic mass and inertia properties with gravity disabled. These values are not Cessna 152 reference data and will be replaced by validated aircraft configuration data.
+
+Control inputs currently drive the control-surface model, but they do not yet generate aerodynamic forces or moments. The aircraft is therefore not yet expected to respond aerodynamically to pilot input.
 
 ## Automated Tests
 
-The project currently contains automated tests covering:
+The project currently contains **27 passing automated tests**.
 
-- Control-surface neutral return
-- Control-surface rate limiting
-- Control-surface saturation
-- Throttle clamping
-- Fixed-step count
-- Frame-hitch protection
-- Simulation reset and advance behavior
-- Default aircraft-state initialization
-- Quaternion normalization
-- Vector algebra and normalization
-- Quaternion rotation and composition
-- FRD/NED coordinate conventions
-- Unreal position conversion
-- Unreal attitude conversion
-- Aircraft-state pose round trips
+| Test group | Coverage | Tests |
+|---|---|---:|
+| Control surfaces | Neutral return, rate limiting, saturation, throttle clamping | 4 |
+| Fixed-step clock | Step count and frame-hitch protection | 2 |
+| Mass properties | Validation and inertia round trip | 2 |
+| Mathematics | Vector algebra, normalization, quaternion rotation and composition | 4 |
+| Rigid-body 6DOF | Constant force, constant moment, constant yaw rate, and gravity | 4 |
+| Simulation facade | Advance, reset, configuration, and rigid-body integration | 4 |
+| Aircraft state | Default initialization and quaternion normalization | 2 |
+| Unreal aircraft-state adapter | Transform conversion and pose round trip | 2 |
+| Coordinate adapter | NED position, FRD body axes, and attitude conversion | 3 |
+| **Total** |  | **27** |
 
 Run all tests from the Unreal console:
 
@@ -196,9 +207,9 @@ C152FlightSim/
 Clone the repository and download the LFS-managed assets:
 
 ```bash
-git clone https://github.com/berksvml/C152FlightSim.git
-cd C152FlightSim
 git lfs install
+git clone https://github.com/berksvml/c152-flight-simulator.git
+cd c152-flight-simulator
 git lfs pull
 ```
 
@@ -215,7 +226,7 @@ Open `C152FlightSim.uproject` after the build completes.
 
 ## Development Roadmap
 
-### Phase 1 — Simulation Foundation
+### Phase 1 — Simulation Foundation — Complete
 
 - [x] Enhanced Input
 - [x] Control-surface command model
@@ -224,27 +235,29 @@ Open `C152FlightSim.uproject` after the build completes.
 - [x] Vector and quaternion mathematics
 - [x] Unreal coordinate adapter
 - [x] Simulation facade
-- [ ] Mass and inertia properties
-- [ ] 6DOF rigid-body propagation
-- [ ] Gravity and constant-load verification
+- [x] Mass and inertia properties
+- [x] 6DOF rigid-body propagation
+- [x] Gravity and constant-load verification
+- [x] Unreal Pawn runtime integration
 
-### Phase 2 — Flight Environment
+### Phase 2 — Atmosphere and Air Data
 
 - [ ] Standard atmosphere
 - [ ] Wind and turbulence
 - [ ] Air-data calculations
 
-### Phase 3 — Aircraft Models
+### Phase 3 — Aircraft Flight Model
 
+- [ ] Validated C152 mass and inertia data
 - [ ] Aerodynamic coefficients
 - [ ] Aerodynamic forces and moments
 - [ ] Propulsion model
 - [ ] Fuel and engine systems
 - [ ] Landing-gear model
 
-### Phase 4 — Unreal Integration
+### Phase 4 — Visualization and Interaction
 
-- [ ] Runtime 6DOF visualization
+- [x] Initial runtime 6DOF visualization
 - [ ] Control-surface animation
 - [ ] Cockpit instruments
 - [ ] Expanded debug telemetry
