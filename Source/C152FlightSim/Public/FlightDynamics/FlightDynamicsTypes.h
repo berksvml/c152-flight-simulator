@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 namespace C152::FlightDynamics
 {
@@ -7,7 +7,64 @@ namespace C152::FlightDynamics
 		double X = 0.0;
 		double Y = 0.0;
 		double Z = 0.0;
+
+		[[nodiscard]]
+		double NormSquared() const;
+
+		[[nodiscard]]
+		double Norm() const;
+
+		[[nodiscard]]
+		bool IsFinite() const;
+
+		bool Normalize();
+
+		[[nodiscard]]
+		FVector3 operator+(
+			const FVector3& Other) const;
+
+		[[nodiscard]]
+		FVector3 operator-(
+			const FVector3& Other) const;
+
+		[[nodiscard]]
+		FVector3 operator-() const;
+
+		[[nodiscard]]
+		FVector3 operator*(
+			double Scalar) const;
+
+		[[nodiscard]]
+		FVector3 operator/(
+			double Scalar) const;
+
+		FVector3& operator+=(
+			const FVector3& Other);
+
+		FVector3& operator-=(
+			const FVector3& Other);
+
+		FVector3& operator*=(
+			double Scalar);
+
+		FVector3& operator/=(
+			double Scalar);
 	};
+
+	[[nodiscard]]
+	FVector3 operator*(
+		double Scalar,
+		const FVector3& Vector);
+
+	[[nodiscard]]
+	double Dot(
+		const FVector3& First,
+		const FVector3& Second);
+
+	[[nodiscard]]
+	FVector3 Cross(
+		const FVector3& First,
+		const FVector3& Second);
 
 	struct FQuaternion
 	{
@@ -20,10 +77,28 @@ namespace C152::FlightDynamics
 		double NormSquared() const;
 
 		[[nodiscard]]
+		double Norm() const;
+
+		[[nodiscard]]
 		bool IsNormalized(
 			double Tolerance = 1.0e-9) const;
 
 		bool Normalize();
+
+		[[nodiscard]]
+		FQuaternion Conjugate() const;
+
+		[[nodiscard]]
+		FQuaternion operator*(
+			const FQuaternion& Other) const;
+
+		[[nodiscard]]
+		FVector3 RotateVector(
+			const FVector3& Vector) const;
+
+		[[nodiscard]]
+		FVector3 InverseRotateVector(
+			const FVector3& Vector) const;
 	};
 
 	struct FAircraftState
