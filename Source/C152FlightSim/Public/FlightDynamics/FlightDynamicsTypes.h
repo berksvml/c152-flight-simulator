@@ -118,10 +118,7 @@ namespace C152::FlightDynamics
 
 	struct FBodyForcesAndMoments
 	{
-		// Body-axis forces: Fx, Fy, Fz [N].
-		FVector3 ForceBodyNewtons;
-
-		// Body-axis moments: L, M, N [N m].
-		FVector3 MomentBodyNewtonMeters;
+		FVector3 ForceBodyNewtons{};
+		FVector3 MomentBodyNewtonMeters{};
 	};
 }
