@@ -1,44 +1,81 @@
 #pragma once
 
+#include "FlightDynamics/AircraftMassProperties.h"
 #include "FlightDynamics/C152ControlSurfaceModel.h"
 #include "FlightDynamics/FixedStepClock.h"
 #include "FlightDynamics/FlightDynamicsTypes.h"
+#include "FlightDynamics/RigidBody6DofModel.h"
 
 #include <cstdint>
 
-namespace C152::FlightDynamics 
+namespace C152::FlightDynamics
 {
-	class FC152Simulation final
-	{
-	public:
-		FC152Simulation();
+    struct FC152SimulationConfiguration
+    {
+        FAircraftMassProperties MassProperties{};
 
-		void Reset();
-		
-		void Reset(
-			const FAircraftState& InitialAircraftState);
+        FVector3 GravityAccelerationNedMetersPerSecondSquared{
+            0.0,
+            0.0,
+            9.80665
+        };
+    };
 
-		[[nodiscard]]
-		std::uint32_t Advance(
-			const FControlCommand& Command,
-			double FrameDeltaSeconds);
+    class FC152Simulation final
+    {
+    public:
+        FC152Simulation();
 
-		[[nodiscard]]
-		const FAircraftState& GetAircraftState() const;
+        void Reset();
 
-		[[nodiscard]]
-		const FControlSurfaceState& GetControlSurfaceState() const;
+        void Reset(
+            const FAircraftState& InitialAircraftState);
 
-		[[nodiscard]]
-		double GetFixedDeltaSeconds() const;
+        [[nodiscard]]
+        bool SetDynamicsConfiguration(
+            const FC152SimulationConfiguration& Configuration);
 
-	private:
-		void Step(
-			const FControlCommand& Command,
-			double FixedDeltaSeconds);
+        void ClearDynamicsConfiguration();
 
-		FAircraftState AircraftState{};
-		FC152ControlSurfaceModel ControlSurfaceModel;
-		FFixedStepClock SimulationClock;
-	};
+        [[nodiscard]]
+        bool IsDynamicsConfigured() const;
+
+        void SetAppliedBodyLoads(
+            const FBodyForcesAndMoments& AppliedLoads);
+
+        [[nodiscard]]
+        std::uint32_t Advance(
+            const FControlCommand& Command,
+            double FrameDeltaSeconds);
+
+        [[nodiscard]]
+        const FAircraftState& GetAircraftState() const;
+
+        [[nodiscard]]
+        const FControlSurfaceState& GetControlSurfaceState() const;
+
+        [[nodiscard]]
+        double GetFixedDeltaSeconds() const;
+
+        [[nodiscard]]
+        bool WasLastDynamicsStepSuccessful() const;
+
+    private:
+        [[nodiscard]]
+        bool Step(
+            const FControlCommand& Command,
+            double FixedDeltaSeconds);
+
+        FAircraftState AircraftState{};
+
+        FC152ControlSurfaceModel ControlSurfaceModel;
+        FFixedStepClock SimulationClock;
+        FRigidBody6DofModel RigidBodyModel;
+
+        FC152SimulationConfiguration DynamicsConfiguration{};
+        FBodyForcesAndMoments AppliedBodyLoads{};
+
+        bool bDynamicsConfigured = false;
+        bool bLastDynamicsStepSuccessful = true;
+    };
 }

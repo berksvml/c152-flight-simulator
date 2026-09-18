@@ -2,72 +2,138 @@
 
 namespace C152::FlightDynamics
 {
-	FC152Simulation::FC152Simulation()
-	{
-		Reset();
-	}
+    FC152Simulation::FC152Simulation()
+    {
+        Reset();
+    }
 
-	void FC152Simulation::Reset()
-	{
-		Reset(FAircraftState{});
-	}
+    void FC152Simulation::Reset()
+    {
+        Reset(FAircraftState{});
+    }
 
-	void FC152Simulation::Reset(
-		const FAircraftState& InitialAircraftState)
-	{
-		AircraftState = InitialAircraftState;
-		AircraftState.AttitudeBodyToNed.Normalize();
+    void FC152Simulation::Reset(
+        const FAircraftState& InitialAircraftState)
+    {
+        AircraftState = InitialAircraftState;
+        AircraftState.AttitudeBodyToNed.Normalize();
 
-		ControlSurfaceModel.Reset();
-		SimulationClock.Reset();
-	}
+        ControlSurfaceModel.Reset();
+        SimulationClock.Reset();
 
-	std::uint32_t FC152Simulation::Advance(
-		const FControlCommand& Command,
-		const double FrameDeltaSeconds)
-	{
-		const std::uint32_t StepCount =
-			SimulationClock.Advance(FrameDeltaSeconds);
+        bLastDynamicsStepSuccessful = true;
+    }
 
-		const double FixedDeltaSeconds =
-			SimulationClock.GetFixedDeltaSeconds();
+    bool FC152Simulation::SetDynamicsConfiguration(
+        const FC152SimulationConfiguration& Configuration)
+    {
+        if (!Configuration.MassProperties.IsValid()
+            || !Configuration
+            .GravityAccelerationNedMetersPerSecondSquared
+            .IsFinite())
+        {
+            return false;
+        }
 
-		for (
-			std::uint32_t StepIndex = 0U;
-			StepIndex < StepCount;
-			++StepIndex)
-		{
-			Step(Command, FixedDeltaSeconds);
-		}
+        DynamicsConfiguration = Configuration;
+        bDynamicsConfigured = true;
+        bLastDynamicsStepSuccessful = true;
 
-		return StepCount;
-	}
+        return true;
+    }
 
-	const FAircraftState&
-		FC152Simulation::GetAircraftState() const
-	{
-		return AircraftState;
-	}
+    void FC152Simulation::ClearDynamicsConfiguration()
+    {
+        DynamicsConfiguration =
+            FC152SimulationConfiguration{};
 
-	const FControlSurfaceState&
-		FC152Simulation::GetControlSurfaceState() const
-	{
-		return ControlSurfaceModel.GetState();
-	}
+        AppliedBodyLoads =
+            FBodyForcesAndMoments{};
 
-	double FC152Simulation::GetFixedDeltaSeconds() const
-	{
-		return SimulationClock.GetFixedDeltaSeconds();
-	}
+        bDynamicsConfigured = false;
+        bLastDynamicsStepSuccessful = true;
+    }
 
-	void FC152Simulation::Step(
-		const FControlCommand& Command,
-		const double FixedDeltaSeconds)
-	{
-		ControlSurfaceModel.Update(
-			Command,
-			FixedDeltaSeconds);
+    bool FC152Simulation::IsDynamicsConfigured() const
+    {
+        return bDynamicsConfigured;
+    }
 
-		// Rigid-body state propagation will be added here.
-	}
+    void FC152Simulation::SetAppliedBodyLoads(
+        const FBodyForcesAndMoments& AppliedLoads)
+    {
+        AppliedBodyLoads = AppliedLoads;
+    }
+
+    std::uint32_t FC152Simulation::Advance(
+        const FControlCommand& Command,
+        const double FrameDeltaSeconds)
+    {
+        const std::uint32_t StepCount =
+            SimulationClock.Advance(FrameDeltaSeconds);
+
+        const double FixedDeltaSeconds =
+            SimulationClock.GetFixedDeltaSeconds();
+
+        bLastDynamicsStepSuccessful = true;
+
+        for (
+            std::uint32_t StepIndex = 0U;
+            StepIndex < StepCount;
+            ++StepIndex)
+        {
+            if (!Step(Command, FixedDeltaSeconds))
+            {
+                bLastDynamicsStepSuccessful = false;
+                break;
+            }
+        }
+
+        return StepCount;
+    }
+
+    const FAircraftState&
+        FC152Simulation::GetAircraftState() const
+    {
+        return AircraftState;
+    }
+
+    const FControlSurfaceState&
+        FC152Simulation::GetControlSurfaceState() const
+    {
+        return ControlSurfaceModel.GetState();
+    }
+
+    double FC152Simulation::GetFixedDeltaSeconds() const
+    {
+        return SimulationClock.GetFixedDeltaSeconds();
+    }
+
+    bool FC152Simulation::
+        WasLastDynamicsStepSuccessful() const
+    {
+        return bLastDynamicsStepSuccessful;
+    }
+
+    bool FC152Simulation::Step(
+        const FControlCommand& Command,
+        const double FixedDeltaSeconds)
+    {
+        ControlSurfaceModel.Update(
+            Command,
+            FixedDeltaSeconds);
+
+        if (!bDynamicsConfigured)
+        {
+            return true;
+        }
+
+        return RigidBodyModel.Propagate(
+            AircraftState,
+            AppliedBodyLoads,
+            DynamicsConfiguration.MassProperties,
+            DynamicsConfiguration
+            .GravityAccelerationNedMetersPerSecondSquared,
+            FixedDeltaSeconds);
+    }
 }
