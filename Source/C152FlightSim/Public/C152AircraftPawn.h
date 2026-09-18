@@ -63,6 +63,9 @@ private:
 	void InitializeSimulationFromActorTransform();
 	void ApplyAircraftStateToActorTransform();
 
+	[[nodiscard]]
+	bool ConfigurePhaseOneDynamicsTest();
+
 	UPROPERTY(
 		VisibleAnywhere,
 		BlueprintReadOnly,
@@ -141,10 +144,28 @@ private:
 
 	UPROPERTY(
 		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Aircraft|Debug|Phase 1 Dynamics",
+		meta = (AllowPrivateAccess = "true"))
+	bool bEnablePhaseOneDynamicsTest = true;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Aircraft|Debug|Phase 1 Dynamics",
+		meta = (
+			AllowPrivateAccess = "true",
+			ClampMin = "0.0"))
+	float PhaseOneInitialForwardSpeedMetersPerSecond = 10.0f;
+
+	UPROPERTY(
+		EditDefaultsOnly,
 		Category = "Aircraft|Debug")
 	bool bShowControlInputDebug = true;
 
 	float ThrottleRateCommand = 0.0f;
 
 	C152::FlightDynamics::FC152Simulation Simulation;
+
+	bool bDynamicsFailureReported = false;
 };

@@ -84,32 +84,77 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 			Command,
 			static_cast<double>(DeltaTime));
 
-	const double FixedDeltaSeconds =
-		Simulation.GetFixedDeltaSeconds();
+	const bool bDynamicsStepSuccessful =
+		Simulation.WasLastDynamicsStepSuccessful();
+
+	if (!bDynamicsStepSuccessful
+		&& !bDynamicsFailureReported)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("C152 rigid-body propagation failed."));
+
+		bDynamicsFailureReported = true;
+	}
+	else if (bDynamicsStepSuccessful)
+	{
+		bDynamicsFailureReported = false;
+	}
 
 	ApplyAircraftStateToActorTransform();
 
-	const C152::FlightDynamics::FControlSurfaceState& SurfaceState =
+	const double FixedDeltaSeconds =
+		Simulation.GetFixedDeltaSeconds();
+
+	const C152::FlightDynamics::FControlSurfaceState&
+		SurfaceState =
 		Simulation.GetControlSurfaceState();
+
+	const C152::FlightDynamics::FAircraftState&
+		AircraftState =
+		Simulation.GetAircraftState();
 
 #if !UE_BUILD_SHIPPING
 	if (bShowControlInputDebug && GEngine)
 	{
+		const TCHAR* DynamicsMode =
+			Simulation.IsDynamicsConfigured()
+			? TEXT("Enabled")
+			: TEXT("Disabled");
+
+		const TCHAR* DynamicsStatus =
+			bDynamicsStepSuccessful
+			? TEXT("OK")
+			: TEXT("FAILED");
+
 		const FString DebugText = FString::Printf(
 			TEXT(
 				"Simulation Steps: %u | Fixed dt: %.3f ms\n"
+				"Dynamics: %s | Status: %s\n"
 				"Input  P: %.2f | R: %.2f | Y: %.2f | T: %.2f\n"
 				"Surface  Elevator: %.1f deg | Aileron: %.1f deg | "
-				"Rudder: %.1f deg"),
+				"Rudder: %.1f deg\n"
+				"Position NED  N: %.2f m | E: %.2f m | D: %.2f m\n"
+				"Velocity Body  U: %.2f m/s | V: %.2f m/s | "
+				"W: %.2f m/s"),
 			static_cast<unsigned int>(SimulationStepCount),
 			FixedDeltaSeconds * 1000.0,
+			DynamicsMode,
+			DynamicsStatus,
 			ControlInput.PitchCommand,
 			ControlInput.RollCommand,
 			ControlInput.YawCommand,
 			ControlInput.ThrottleCommand,
 			FMath::RadiansToDegrees(SurfaceState.ElevatorRad),
 			FMath::RadiansToDegrees(SurfaceState.AileronRad),
-			FMath::RadiansToDegrees(SurfaceState.RudderRad));
+			FMath::RadiansToDegrees(SurfaceState.RudderRad),
+			AircraftState.PositionNedMeters.X,
+			AircraftState.PositionNedMeters.Y,
+			AircraftState.PositionNedMeters.Z,
+			AircraftState.VelocityBodyMetersPerSecond.X,
+			AircraftState.VelocityBodyMetersPerSecond.Y,
+			AircraftState.VelocityBodyMetersPerSecond.Z);
 
 		GEngine->AddOnScreenDebugMessage(
 			static_cast<uint64>(GetUniqueID()),
@@ -303,16 +348,48 @@ void AC152AircraftPawn::ResetThrottleRateInput(
 	ThrottleRateCommand = 0.0f;
 }
 
-void AC152AircraftPawn::InitializeSimulationFromActorTransform()
+void AC152AircraftPawn::
+InitializeSimulationFromActorTransform()
 {
-	C152::FlightDynamics::FAircraftState InitialAircraftState{};
+	using namespace C152::FlightDynamics;
+
+	FAircraftState InitialAircraftState{};
 
 	C152::UnrealIntegration::FUnrealAircraftStateAdapter::
 		UpdateCorePoseFromUnrealTransform(
 			GetActorTransform(),
 			InitialAircraftState);
 
+	if (bEnablePhaseOneDynamicsTest)
+	{
+		InitialAircraftState
+			.VelocityBodyMetersPerSecond.X =
+			static_cast<double>(
+				FMath::Max(
+					PhaseOneInitialForwardSpeedMetersPerSecond,
+					0.0f));
+	}
+
+	Simulation.ClearDynamicsConfiguration();
 	Simulation.Reset(InitialAircraftState);
+
+	if (bEnablePhaseOneDynamicsTest)
+	{
+		const bool bConfigurationSucceeded =
+			ConfigurePhaseOneDynamicsTest();
+
+		if (!bConfigurationSucceeded)
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT(
+					"Failed to configure the Phase 1 "
+					"dynamics test."));
+		}
+	}
+
+	bDynamicsFailureReported = false;
 }
 
 void AC152AircraftPawn::ApplyAircraftStateToActorTransform()
@@ -328,4 +405,40 @@ void AC152AircraftPawn::ApplyAircraftStateToActorTransform()
 		false,
 		nullptr,
 		ETeleportType::TeleportPhysics);
+}
+
+bool AC152AircraftPawn::
+ConfigurePhaseOneDynamicsTest()
+{
+	using namespace C152::FlightDynamics;
+
+	FC152SimulationConfiguration Configuration;
+
+	// Synthetic values used only for the Phase 1 runtime test.
+	// Validated C152 data will be introduced separately.
+	Configuration.MassProperties.MassKilograms = 1.0;
+
+	Configuration.MassProperties
+		.InertiaXxKilogramMetersSquared = 1.0;
+
+	Configuration.MassProperties
+		.InertiaYyKilogramMetersSquared = 1.0;
+
+	Configuration.MassProperties
+		.InertiaZzKilogramMetersSquared = 1.0;
+
+	Configuration.MassProperties
+		.ProductOfInertiaXzKilogramMetersSquared = 0.0;
+
+	// Gravity remains disabled until lift and ground-contact
+	// models are available.
+	Configuration
+		.GravityAccelerationNedMetersPerSecondSquared = {
+			0.0,
+			0.0,
+			0.0
+	};
+
+	return Simulation.SetDynamicsConfiguration(
+		Configuration);
 }
