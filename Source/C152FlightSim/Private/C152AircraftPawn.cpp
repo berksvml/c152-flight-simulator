@@ -48,10 +48,7 @@ void AC152AircraftPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
-	ControlSurfaceModel.Reset();
-	SimulationClock.Reset();
-
-	InitializeAircraftStateFromActorTransform();
+	InitializeSimulationFromActorTransform();
 
 	UE_LOG(LogTemp, Log, TEXT("C152AircraftPawn initialized."));
 }
@@ -60,49 +57,40 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	ControlInput.ThrottleCommand = FMath::Clamp(
+		ControlInput.ThrottleCommand
+		+ ThrottleRateCommand
+		* ThrottleChangeRate
+		* DeltaTime,
+		0.0f,
+		1.0f);
+
+	C152::FlightDynamics::FControlCommand Command{};
+
+	Command.Pitch =
+		static_cast<double>(ControlInput.PitchCommand);
+
+	Command.Roll =
+		static_cast<double>(ControlInput.RollCommand);
+
+	Command.Yaw =
+		static_cast<double>(ControlInput.YawCommand);
+
+	Command.Throttle =
+		static_cast<double>(ControlInput.ThrottleCommand);
+
 	const std::uint32_t SimulationStepCount =
-		SimulationClock.Advance(
+		Simulation.Advance(
+			Command,
 			static_cast<double>(DeltaTime));
 
 	const double FixedDeltaSeconds =
-		SimulationClock.GetFixedDeltaSeconds();
-
-	for (
-		std::uint32_t StepIndex = 0U;
-		StepIndex < SimulationStepCount;
-		++StepIndex)
-	{
-		ControlInput.ThrottleCommand = FMath::Clamp(
-			ControlInput.ThrottleCommand
-			+ ThrottleRateCommand
-			* ThrottleChangeRate
-			* static_cast<float>(FixedDeltaSeconds),
-			0.0f,
-			1.0f);
-
-		C152::FlightDynamics::FControlCommand Command;
-
-		Command.Pitch =
-			static_cast<double>(ControlInput.PitchCommand);
-
-		Command.Roll =
-			static_cast<double>(ControlInput.RollCommand);
-
-		Command.Yaw =
-			static_cast<double>(ControlInput.YawCommand);
-
-		Command.Throttle =
-			static_cast<double>(ControlInput.ThrottleCommand);
-
-		ControlSurfaceModel.Update(
-			Command,
-			FixedDeltaSeconds);
-	}
+		Simulation.GetFixedDeltaSeconds();
 
 	ApplyAircraftStateToActorTransform();
 
 	const C152::FlightDynamics::FControlSurfaceState& SurfaceState =
-		ControlSurfaceModel.GetState();
+		Simulation.GetControlSurfaceState();
 
 #if !UE_BUILD_SHIPPING
 	if (bShowControlInputDebug && GEngine)
@@ -315,19 +303,24 @@ void AC152AircraftPawn::ResetThrottleRateInput(
 	ThrottleRateCommand = 0.0f;
 }
 
-void AC152AircraftPawn::InitializeAircraftStateFromActorTransform()
+void AC152AircraftPawn::InitializeSimulationFromActorTransform()
 {
+	C152::FlightDynamics::FAircraftState InitialAircraftState{};
+
 	C152::UnrealIntegration::FUnrealAircraftStateAdapter::
 		UpdateCorePoseFromUnrealTransform(
 			GetActorTransform(),
-			AircraftState);
+			InitialAircraftState);
+
+	Simulation.Reset(InitialAircraftState);
 }
 
 void AC152AircraftPawn::ApplyAircraftStateToActorTransform()
 {
 	const FTransform TargetTransform =
 		C152::UnrealIntegration::FUnrealAircraftStateAdapter::
-		ToUnrealTransform(AircraftState);
+		ToUnrealTransform(
+			Simulation.GetAircraftState());
 
 	SetActorLocationAndRotation(
 		TargetTransform.GetLocation(),
