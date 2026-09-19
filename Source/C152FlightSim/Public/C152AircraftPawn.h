@@ -160,6 +160,19 @@ private:
 
 	UPROPERTY(
 		EditDefaultsOnly,
+		Category = "Aircraft|Environment",
+		meta = (ClampMin = "0.0", ClampMax = "11000.0"))
+	double WorldOriginGeopotentialAltitudeMeters = 0.0;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Aircraft|Environment",
+		meta = (ToolTip =
+			"Air-mass velocity in NED [m/s]: X North, Y East, Z Down"))
+	FVector WindVelocityNedMetersPerSecond = FVector::ZeroVector;
+
+	UPROPERTY(
+		EditDefaultsOnly,
 		Category = "Aircraft|Debug")
 	bool bShowControlInputDebug = true;
 

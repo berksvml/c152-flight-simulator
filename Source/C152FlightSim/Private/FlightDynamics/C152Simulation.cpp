@@ -1,5 +1,7 @@
 #include "FlightDynamics/C152Simulation.h"
 
+#include <cmath>
+
 namespace C152::FlightDynamics
 {
     FC152Simulation::FC152Simulation()
@@ -22,6 +24,81 @@ namespace C152::FlightDynamics
         SimulationClock.Reset();
 
         bLastDynamicsStepSuccessful = true;
+    }
+
+    bool FC152Simulation::SetEnvironmentConfiguration(
+        const FEnvironmentConfiguration& Configuration)
+    {
+        const double OriginAltitude =
+            Configuration.OriginGeopotentialAltitudeMeters;
+
+        if (!std::isfinite(OriginAltitude)
+            || OriginAltitude < 0.0
+            || OriginAltitude
+            > FStandardAtmosphere::MaxGeopotentialAltitudeMeters
+            || !Configuration
+            .WindVelocityNedMetersPerSecond.IsFinite())
+        {
+            return false;
+        }
+
+        EnvironmentConfiguration = Configuration;
+        bEnvironmentConfigured = true;
+
+        return true;
+    }
+
+    void FC152Simulation::ClearEnvironmentConfiguration()
+    {
+        EnvironmentConfiguration = FEnvironmentConfiguration{};
+        bEnvironmentConfigured = false;
+    }
+
+    bool FC152Simulation::IsEnvironmentConfigured() const
+    {
+        return bEnvironmentConfigured;
+    }
+
+    bool FC152Simulation::TryGetEnvironmentSample(
+        FAtmosphereState& OutAtmosphere,
+        FAirData& OutAirData) const
+    {
+        if (!bEnvironmentConfigured)
+        {
+            return false;
+        }
+
+        // Local flat-Earth approximation: NED down displacement decreases
+        // altitude above mean sea level.
+        const double AltitudeMeters =
+            EnvironmentConfiguration.OriginGeopotentialAltitudeMeters
+            - AircraftState.PositionNedMeters.Z;
+
+        FAtmosphereState AtmosphereSample{};
+
+        if (!FStandardAtmosphere::TryEvaluate(
+            AltitudeMeters,
+            AtmosphereSample))
+        {
+            return false;
+        }
+
+        FAirData AirDataSample{};
+
+        if (!FAirDataModel::TryEvaluate(
+            AircraftState,
+            AtmosphereSample,
+            EnvironmentConfiguration
+            .WindVelocityNedMetersPerSecond,
+            AirDataSample))
+        {
+            return false;
+        }
+
+        OutAtmosphere = AtmosphereSample;
+        OutAirData = AirDataSample;
+
+        return true;
     }
 
     bool FC152Simulation::SetDynamicsConfiguration(

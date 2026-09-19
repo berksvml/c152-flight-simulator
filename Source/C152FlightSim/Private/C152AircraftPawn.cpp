@@ -128,7 +128,7 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 			? TEXT("OK")
 			: TEXT("FAILED");
 
-		const FString DebugText = FString::Printf(
+		FString DebugText = FString::Printf(
 			TEXT(
 				"Simulation Steps: %u | Fixed dt: %.3f ms\n"
 				"Dynamics: %s | Status: %s\n"
@@ -155,6 +155,39 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 			AircraftState.VelocityBodyMetersPerSecond.X,
 			AircraftState.VelocityBodyMetersPerSecond.Y,
 			AircraftState.VelocityBodyMetersPerSecond.Z);
+
+		C152::FlightDynamics::FAtmosphereState AtmosphereSample{};
+		C152::FlightDynamics::FAirData AirDataSample{};
+
+		if (Simulation.TryGetEnvironmentSample(
+			AtmosphereSample,
+			AirDataSample))
+		{
+			const double AltitudeMeters =
+				WorldOriginGeopotentialAltitudeMeters
+				- AircraftState.PositionNedMeters.Z;
+
+			DebugText += FString::Printf(
+				TEXT(
+					"\nAtmosphere  Alt: %.1f m | Density: %.3f kg/m^3"
+					"\nAir data  TAS: %.2f m/s | Alpha: %.1f deg | "
+					"Beta: %.1f deg | q: %.1f Pa | Mach: %.3f"),
+				AltitudeMeters,
+				AtmosphereSample.DensityKilogramsPerCubicMeter,
+				AirDataSample.TrueAirspeedMetersPerSecond,
+				FMath::RadiansToDegrees(
+					AirDataSample.AngleOfAttackRadians),
+				FMath::RadiansToDegrees(
+					AirDataSample.SideslipAngleRadians),
+				AirDataSample.DynamicPressurePascals,
+				AirDataSample.MachNumber);
+		}
+		else
+		{
+			DebugText += TEXT(
+				"\nAir data unavailable: check origin altitude "
+				"and aircraft position.");
+		}
 
 		GEngine->AddOnScreenDebugMessage(
 			static_cast<uint64>(GetUniqueID()),
@@ -371,7 +404,26 @@ InitializeSimulationFromActorTransform()
 	}
 
 	Simulation.ClearDynamicsConfiguration();
+	Simulation.ClearEnvironmentConfiguration();
 	Simulation.Reset(InitialAircraftState);
+
+	FEnvironmentConfiguration Environment{};
+	Environment.OriginGeopotentialAltitudeMeters =
+		WorldOriginGeopotentialAltitudeMeters;
+
+	Environment.WindVelocityNedMetersPerSecond = FVector3{
+		WindVelocityNedMetersPerSecond.X,
+		WindVelocityNedMetersPerSecond.Y,
+		WindVelocityNedMetersPerSecond.Z
+	};
+
+	if (!Simulation.SetEnvironmentConfiguration(Environment))
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("Failed to configure the aircraft environment."));
+	}
 
 	if (bEnablePhaseOneDynamicsTest)
 	{

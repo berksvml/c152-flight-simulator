@@ -5,11 +5,22 @@
 #include "FlightDynamics/FixedStepClock.h"
 #include "FlightDynamics/FlightDynamicsTypes.h"
 #include "FlightDynamics/RigidBody6DofModel.h"
+#include "FlightDynamics/AirDataModel.h"
+#include "FlightDynamics/StandardAtmosphere.h"
 
 #include <cstdint>
 
 namespace C152::FlightDynamics
 {
+    struct FEnvironmentConfiguration
+    {
+        // Geopotential altitude of the local NED origin above mean sea level [m].
+        double OriginGeopotentialAltitudeMeters = 0.0;
+
+        // Velocity of the air mass in Navigation/NED axes [m/s].
+        FVector3 WindVelocityNedMetersPerSecond{};
+    };
+
     struct FC152SimulationConfiguration
     {
         FAircraftMassProperties MassProperties{};
@@ -60,6 +71,22 @@ namespace C152::FlightDynamics
         [[nodiscard]]
         bool WasLastDynamicsStepSuccessful() const;
 
+        [[nodiscard]]
+        bool SetEnvironmentConfiguration(
+            const FEnvironmentConfiguration& Configuration);
+
+        void ClearEnvironmentConfiguration();
+
+        [[nodiscard]]
+        bool IsEnvironmentConfigured() const;
+
+        // Calculates data from the current aircraft state.
+        // On failure, neither output is changed.
+        [[nodiscard]]
+        bool TryGetEnvironmentSample(
+            FAtmosphereState& OutAtmosphere,
+            FAirData& OutAirData) const;
+
     private:
         [[nodiscard]]
         bool Step(
@@ -74,7 +101,9 @@ namespace C152::FlightDynamics
 
         FC152SimulationConfiguration DynamicsConfiguration{};
         FBodyForcesAndMoments AppliedBodyLoads{};
+        FEnvironmentConfiguration EnvironmentConfiguration{};
 
+        bool bEnvironmentConfigured = false;
         bool bDynamicsConfigured = false;
         bool bLastDynamicsStepSuccessful = true;
     };
