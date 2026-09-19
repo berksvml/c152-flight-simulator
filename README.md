@@ -213,6 +213,8 @@ cd c152-flight-simulator
 git lfs pull
 ```
 
+The project's `EngineAssociation` identifies the development engine installation. If Unreal cannot find that installation on another machine, use **Switch Unreal Engine version** to select a local Unreal Engine 5.8.2 installation. Unreal may update the local `.uproject` association during this step.
+
 Generate the Visual Studio project files if required.
 
 Build using:
