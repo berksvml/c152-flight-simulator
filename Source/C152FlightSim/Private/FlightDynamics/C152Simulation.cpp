@@ -1,5 +1,7 @@
 #include "FlightDynamics/C152Simulation.h"
 
+#include <cmath>
+
 namespace C152::FlightDynamics
 {
     FC152Simulation::FC152Simulation()
@@ -21,7 +23,120 @@ namespace C152::FlightDynamics
         ControlSurfaceModel.Reset();
         SimulationClock.Reset();
 
+        if (bEnvironmentConfigured)
+        {
+            WindModel.Reset();
+        }
+
         bLastDynamicsStepSuccessful = true;
+    }
+
+    bool FC152Simulation::SetEnvironmentConfiguration(
+        const FEnvironmentConfiguration& Configuration)
+    {
+        const double OriginAltitude =
+            Configuration.OriginGeopotentialAltitudeMeters;
+
+        if (!std::isfinite(OriginAltitude)
+            || OriginAltitude < 0.0
+            || OriginAltitude
+            > FStandardAtmosphere::MaxGeopotentialAltitudeMeters)
+        {
+            return false;
+        }
+
+        FWindModelConfiguration WindConfiguration{};
+
+        WindConfiguration.SteadyWindVelocityNedMetersPerSecond =
+            Configuration.WindVelocityNedMetersPerSecond;
+
+        WindConfiguration
+            .TurbulenceStandardDeviationNedMetersPerSecond =
+            Configuration
+            .TurbulenceStandardDeviationNedMetersPerSecond;
+
+        WindConfiguration.TurbulenceCorrelationTimeSeconds =
+            Configuration.TurbulenceCorrelationTimeSeconds;
+
+        WindConfiguration.RandomSeed =
+            Configuration.TurbulenceRandomSeed;
+
+        if (!WindModel.Configure(WindConfiguration))
+        {
+            return false;
+        }
+
+        EnvironmentConfiguration = Configuration;
+        bEnvironmentConfigured = true;
+
+        return true;
+    }
+
+    void FC152Simulation::ClearEnvironmentConfiguration()
+    {
+        EnvironmentConfiguration = FEnvironmentConfiguration{};
+        WindModel.Clear();
+        bEnvironmentConfigured = false;
+    }
+
+    bool FC152Simulation::IsEnvironmentConfigured() const
+    {
+        return bEnvironmentConfigured;
+    }
+
+    const FVector3&
+        FC152Simulation::GetWindVelocityNedMetersPerSecond() const
+    {
+        return WindModel.GetWindVelocityNedMetersPerSecond();
+    }
+
+    const FVector3&
+        FC152Simulation::
+        GetTurbulenceVelocityNedMetersPerSecond() const
+    {
+        return WindModel
+            .GetTurbulenceVelocityNedMetersPerSecond();
+    }
+
+    bool FC152Simulation::TryGetEnvironmentSample(
+        FAtmosphereState& OutAtmosphere,
+        FAirData& OutAirData) const
+    {
+        if (!bEnvironmentConfigured)
+        {
+            return false;
+        }
+
+        // Local flat-Earth approximation: NED down displacement decreases
+        // altitude above mean sea level.
+        const double AltitudeMeters =
+            EnvironmentConfiguration.OriginGeopotentialAltitudeMeters
+            - AircraftState.PositionNedMeters.Z;
+
+        FAtmosphereState AtmosphereSample{};
+
+        if (!FStandardAtmosphere::TryEvaluate(
+            AltitudeMeters,
+            AtmosphereSample))
+        {
+            return false;
+        }
+
+        FAirData AirDataSample{};
+
+        if (!FAirDataModel::TryEvaluate(
+            AircraftState,
+            AtmosphereSample,
+            WindModel.GetWindVelocityNedMetersPerSecond(),
+            AirDataSample))
+        {
+            return false;
+        }
+
+        OutAtmosphere = AtmosphereSample;
+        OutAirData = AirDataSample;
+
+        return true;
     }
 
     bool FC152Simulation::SetDynamicsConfiguration(
@@ -119,6 +234,12 @@ namespace C152::FlightDynamics
         const FControlCommand& Command,
         const double FixedDeltaSeconds)
     {
+        if (bEnvironmentConfigured
+            && !WindModel.Update(FixedDeltaSeconds))
+        {
+            return false;
+        }
+
         ControlSurfaceModel.Update(
             Command,
             FixedDeltaSeconds);
