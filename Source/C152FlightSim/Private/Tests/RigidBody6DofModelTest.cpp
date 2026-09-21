@@ -10,7 +10,7 @@ namespace
     constexpr double GravityMetersPerSecondSquared = 9.80665;
     constexpr double FixedDeltaTimeSeconds = 1.0 / 120.0;
 
-    bool IsNear(
+    bool IsRigidBodyValueNear(
         const double Actual,
         const double Expected,
         const double Tolerance = 1.0e-8)
@@ -65,13 +65,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Constant force produces expected velocity"),
-        IsNear(
+        IsRigidBodyValueNear(
             State.VelocityBodyMetersPerSecond.X,
             1.0));
 
     TestTrue(
         TEXT("Trapezoidal position integration is correct"),
-        IsNear(
+        IsRigidBodyValueNear(
             State.PositionNedMeters.X,
             0.25));
 
@@ -120,13 +120,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Gravity produces expected downward velocity"),
-        IsNear(
+        IsRigidBodyValueNear(
             State.VelocityBodyMetersPerSecond.Z,
             GravityMetersPerSecondSquared));
 
     TestTrue(
         TEXT("Gravity produces expected downward position"),
-        IsNear(
+        IsRigidBodyValueNear(
             State.PositionNedMeters.Z,
             0.5 * GravityMetersPerSecondSquared));
 
@@ -186,13 +186,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Positive yaw rotates north toward east"),
-        IsNear(RotatedForward.X, 0.0, 1.0e-6)
-        && IsNear(RotatedForward.Y, 1.0, 1.0e-6)
-        && IsNear(RotatedForward.Z, 0.0, 1.0e-6));
+        IsRigidBodyValueNear(RotatedForward.X, 0.0, 1.0e-6)
+        && IsRigidBodyValueNear(RotatedForward.Y, 1.0, 1.0e-6)
+        && IsRigidBodyValueNear(RotatedForward.Z, 0.0, 1.0e-6));
 
     TestTrue(
         TEXT("Attitude quaternion remains normalized"),
-        IsNear(
+        IsRigidBodyValueNear(
             State.AttitudeBodyToNed.Norm(),
             1.0,
             1.0e-10));
@@ -244,7 +244,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Constant moment produces expected yaw rate"),
-        IsNear(
+        IsRigidBodyValueNear(
             State.AngularRateBodyRadiansPerSecond.Z,
             2.0));
 
@@ -257,8 +257,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Constant moment produces expected yaw angle"),
-        IsNear(RotatedForward.X, std::cos(1.0), 1.0e-6)
-        && IsNear(RotatedForward.Y, std::sin(1.0), 1.0e-6));
+        IsRigidBodyValueNear(RotatedForward.X, std::cos(1.0), 1.0e-6)
+        && IsRigidBodyValueNear(RotatedForward.Y, std::sin(1.0), 1.0e-6));
 
     return true;
 }

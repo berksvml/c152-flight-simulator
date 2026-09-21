@@ -8,7 +8,7 @@
 
 namespace
 {
-    bool IsNear(
+    bool IsWindValueNear(
         const double Actual,
         const double Expected,
         const double Tolerance = 1.0e-12)
@@ -21,9 +21,9 @@ namespace
         const C152::FlightDynamics::FVector3& Expected,
         const double Tolerance = 1.0e-12)
     {
-        return IsNear(Actual.X, Expected.X, Tolerance)
-            && IsNear(Actual.Y, Expected.Y, Tolerance)
-            && IsNear(Actual.Z, Expected.Z, Tolerance);
+        return IsWindValueNear(Actual.X, Expected.X, Tolerance)
+            && IsWindValueNear(Actual.Y, Expected.Y, Tolerance)
+            && IsWindValueNear(Actual.Z, Expected.Z, Tolerance);
     }
 }
 

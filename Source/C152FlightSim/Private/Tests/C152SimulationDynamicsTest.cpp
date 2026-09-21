@@ -8,7 +8,7 @@
 
 namespace
 {
-    bool IsNear(
+    bool IsSimulationDynamicsValueNear(
         const double Actual,
         const double Expected,
         const double Tolerance = 1.0e-8)
@@ -161,24 +161,24 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Facade produces expected forward velocity"),
-        IsNear(
+        IsSimulationDynamicsValueNear(
             State.VelocityBodyMetersPerSecond.X,
             2.0));
 
     TestTrue(
         TEXT("Facade produces expected forward position"),
-        IsNear(
+        IsSimulationDynamicsValueNear(
             State.PositionNedMeters.X,
             1.0));
 
     TestTrue(
         TEXT("Unforced lateral states remain zero"),
-        IsNear(State.PositionNedMeters.Y, 0.0)
-        && IsNear(State.PositionNedMeters.Z, 0.0)
-        && IsNear(
+        IsSimulationDynamicsValueNear(State.PositionNedMeters.Y, 0.0)
+        && IsSimulationDynamicsValueNear(State.PositionNedMeters.Z, 0.0)
+        && IsSimulationDynamicsValueNear(
             State.VelocityBodyMetersPerSecond.Y,
             0.0)
-        && IsNear(
+        && IsSimulationDynamicsValueNear(
             State.VelocityBodyMetersPerSecond.Z,
             0.0));
 

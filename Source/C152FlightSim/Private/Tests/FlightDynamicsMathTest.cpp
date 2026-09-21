@@ -10,7 +10,7 @@ namespace
 	constexpr double Pi =
 		3.14159265358979323846;
 
-	bool IsNear(
+	bool IsFlightDynamicsMathValueNear(
 		const double Actual,
 		const double Expected,
 		const double Tolerance = 1.0e-9)
@@ -24,9 +24,9 @@ namespace
 		const C152::FlightDynamics::FVector3& Expected,
 		const double Tolerance = 1.0e-9)
 	{
-		return IsNear(Actual.X, Expected.X, Tolerance)
-			&& IsNear(Actual.Y, Expected.Y, Tolerance)
-			&& IsNear(Actual.Z, Expected.Z, Tolerance);
+		return IsFlightDynamicsMathValueNear(Actual.X, Expected.X, Tolerance)
+			&& IsFlightDynamicsMathValueNear(Actual.Y, Expected.Y, Tolerance)
+			&& IsFlightDynamicsMathValueNear(Actual.Z, Expected.Z, Tolerance);
 	}
 }
 
@@ -72,7 +72,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Vector dot product is correct"),
-		IsNear(
+		IsFlightDynamicsMathValueNear(
 			Dot(First, Second),
 			12.0));
 
@@ -117,7 +117,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Normalized vector has unit length"),
-		IsNear(Vector.Norm(), 1.0));
+		IsFlightDynamicsMathValueNear(Vector.Norm(), 1.0));
 
 	TestTrue(
 		TEXT("Normalized vector direction is preserved"),

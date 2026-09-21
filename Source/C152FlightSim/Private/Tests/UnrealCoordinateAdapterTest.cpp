@@ -7,7 +7,7 @@
 
 namespace
 {
-	bool IsNear(
+	bool IsCoordinateValueNear(
 		const double Actual,
 		const double Expected)
 	{
@@ -41,15 +41,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("North maps to positive Unreal X"),
-		IsNear(UnrealPosition.X, 100.0));
+		IsCoordinateValueNear(UnrealPosition.X, 100.0));
 
 	TestTrue(
 		TEXT("East maps to positive Unreal Y"),
-		IsNear(UnrealPosition.Y, 200.0));
+		IsCoordinateValueNear(UnrealPosition.Y, 200.0));
 
 	TestTrue(
 		TEXT("Down maps to negative Unreal Z"),
-		IsNear(UnrealPosition.Z, -300.0));
+		IsCoordinateValueNear(UnrealPosition.Z, -300.0));
 
 	const FlightDynamics::FVector3 RoundTripPosition =
 		UnrealIntegration::FUnrealCoordinateAdapter::
@@ -58,9 +58,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Position conversion round trip"),
-		IsNear(RoundTripPosition.X, NedPosition.X)
-		&& IsNear(RoundTripPosition.Y, NedPosition.Y)
-		&& IsNear(RoundTripPosition.Z, NedPosition.Z));
+		IsCoordinateValueNear(RoundTripPosition.X, NedPosition.X)
+		&& IsCoordinateValueNear(RoundTripPosition.Y, NedPosition.Y)
+		&& IsCoordinateValueNear(RoundTripPosition.Z, NedPosition.Z));
 
 	return true;
 }
@@ -194,10 +194,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 		TestTrue(
 			TEXT("Attitude conversion round trip"),
-			IsNear(RoundTripYaw.W, CoreYaw.W)
-			&& IsNear(RoundTripYaw.X, CoreYaw.X)
-			&& IsNear(RoundTripYaw.Y, CoreYaw.Y)
-			&& IsNear(RoundTripYaw.Z, CoreYaw.Z));
+			IsCoordinateValueNear(RoundTripYaw.W, CoreYaw.W)
+			&& IsCoordinateValueNear(RoundTripYaw.X, CoreYaw.X)
+			&& IsCoordinateValueNear(RoundTripYaw.Y, CoreYaw.Y)
+			&& IsCoordinateValueNear(RoundTripYaw.Z, CoreYaw.Z));
 
 		return true;
 	}

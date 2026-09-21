@@ -7,7 +7,7 @@
 
 namespace
 {
-	bool IsNear(
+	bool IsAircraftStateValueNear(
 		const double Actual,
 		const double Expected,
 		const double Tolerance = 1.0e-9)
@@ -26,7 +26,7 @@ namespace
 			+ First.Z * Second.Z;
 
 		// q and -q represent the same physical attitude.
-		return IsNear(std::abs(DotProduct), 1.0);
+		return IsAircraftStateValueNear(std::abs(DotProduct), 1.0);
 	}
 }
 
@@ -149,13 +149,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Aircraft position survives pose round trip"),
-		IsNear(
+		IsAircraftStateValueNear(
 			RoundTripState.PositionNedMeters.X,
 			OriginalState.PositionNedMeters.X)
-		&& IsNear(
+		&& IsAircraftStateValueNear(
 			RoundTripState.PositionNedMeters.Y,
 			OriginalState.PositionNedMeters.Y)
-		&& IsNear(
+		&& IsAircraftStateValueNear(
 			RoundTripState.PositionNedMeters.Z,
 			OriginalState.PositionNedMeters.Z));
 
@@ -167,25 +167,25 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Pose conversion does not overwrite body velocity"),
-		IsNear(
+		IsAircraftStateValueNear(
 			RoundTripState.VelocityBodyMetersPerSecond.X,
 			10.0)
-		&& IsNear(
+		&& IsAircraftStateValueNear(
 			RoundTripState.VelocityBodyMetersPerSecond.Y,
 			20.0)
-		&& IsNear(
+		&& IsAircraftStateValueNear(
 			RoundTripState.VelocityBodyMetersPerSecond.Z,
 			30.0));
 
 	TestTrue(
 		TEXT("Pose conversion does not overwrite angular rate"),
-		IsNear(
+		IsAircraftStateValueNear(
 			RoundTripState.AngularRateBodyRadiansPerSecond.X,
 			0.1)
-		&& IsNear(
+		&& IsAircraftStateValueNear(
 			RoundTripState.AngularRateBodyRadiansPerSecond.Y,
 			0.2)
-		&& IsNear(
+		&& IsAircraftStateValueNear(
 			RoundTripState.AngularRateBodyRadiansPerSecond.Z,
 			0.3));
 

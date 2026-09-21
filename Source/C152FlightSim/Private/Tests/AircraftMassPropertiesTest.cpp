@@ -7,7 +7,7 @@
 
 namespace
 {
-	bool IsNear(
+	bool IsMassPropertyValueNear(
 		const double Actual,
 		const double Expected,
 		const double Tolerance = 1.0e-9)
@@ -21,9 +21,9 @@ namespace
 		const C152::FlightDynamics::FVector3& Expected,
 		const double Tolerance = 1.0e-9)
 	{
-		return IsNear(Actual.X, Expected.X, Tolerance)
-			&& IsNear(Actual.Y, Expected.Y, Tolerance)
-			&& IsNear(Actual.Z, Expected.Z, Tolerance);
+		return IsMassPropertyValueNear(Actual.X, Expected.X, Tolerance)
+			&& IsMassPropertyValueNear(Actual.Y, Expected.Y, Tolerance)
+			&& IsMassPropertyValueNear(Actual.Z, Expected.Z, Tolerance);
 	}
 }
 
