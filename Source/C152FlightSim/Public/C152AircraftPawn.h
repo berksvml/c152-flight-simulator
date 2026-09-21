@@ -173,6 +173,30 @@ private:
 
 	UPROPERTY(
 		EditDefaultsOnly,
+		Category = "Aircraft|Environment",
+		meta = (
+			ToolTip = "Turbulence standard deviation in NED [m/s]: X North, Y East, Z Down"))
+		FVector TurbulenceStandardDeviationNedMetersPerSecond =
+		FVector::ZeroVector;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Aircraft|Environment",
+		meta = (
+			ClampMin = "0.01",
+			ToolTip = "First-order turbulence correlation time [s]"))
+	double TurbulenceCorrelationTimeSeconds = 1.0;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Aircraft|Environment",
+		meta = (
+			ClampMin = "0",
+			ToolTip = "Equal seeds produce equal turbulence sequences"))
+	int32 TurbulenceRandomSeed = 1;
+
+	UPROPERTY(
+		EditDefaultsOnly,
 		Category = "Aircraft|Debug")
 	bool bShowControlInputDebug = true;
 

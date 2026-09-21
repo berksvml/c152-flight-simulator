@@ -2,7 +2,7 @@
 
 An independent flight simulation project developed from scratch by **Berk Sevimli** using C++ and Unreal Engine.
 
-> This project is under active development. Phase 1 of the simulation foundation is complete, including deterministic execution, coordinate-system integration, rigid-body 6DOF propagation, Unreal runtime integration, and automated verification.
+> This project is under active development. Phase 1 and Phase 2 are complete, including deterministic rigid-body propagation, coordinate-system integration, standard-atmosphere modelling, deterministic wind and turbulence, air-data calculations, Unreal runtime integration, and automated verification.
 
 ## Project Overview
 
@@ -51,7 +51,8 @@ The simulation core owns:
 - Aircraft mass and inertia properties
 - Rigid-body 6DOF state propagation
 - Applied body forces and moments
-- Future atmosphere, aerodynamics, propulsion, and aircraft-system models
+- Atmosphere, wind, turbulence, and air-data models
+- Future aerodynamics, propulsion, and aircraft-system models
 
 The Unreal integration layer converts between the simulation coordinate systems and Unreal Engine world coordinates.
 
@@ -114,11 +115,19 @@ Attitude is represented by a normalized quaternion describing the active rotatio
 - Quaternion-based attitude propagation
 - Runtime state-to-Pawn integration
 - Phase 1 straight-line runtime verification scenario
-- 27 passing Unreal Automation tests
+- U.S. Standard Atmosphere 1976 troposphere model from 0 to 11 km
+- Temperature, pressure, density, and speed-of-sound calculations
+- Configurable steady wind in Navigation/NED axes
+- Seeded deterministic first-order turbulence model
+- Air-relative body velocity calculation
+- True airspeed, angle of attack, sideslip angle, dynamic pressure, and Mach number
+- Environment sampling through `FC152Simulation`
+- Runtime atmosphere, wind, turbulence, and air-data telemetry
+- 39 passing Unreal Automation tests
 
 ## Current Simulation Status
 
-Phase 1 of the simulation foundation is complete. The current implementation can propagate an aircraft state through the full rigid-body translational and rotational equations of motion at a deterministic 120 Hz simulation rate.
+Phase 1 and Phase 2 are complete. The simulation can propagate an aircraft state through the rigid-body translational and rotational equations of motion at a deterministic 120 Hz rate and calculate the atmospheric and air-data conditions associated with that state.
 
 Implemented:
 
@@ -133,12 +142,17 @@ Implemented:
 - Gravity transformation from NED to body axes
 - Translational and rotational 6DOF state propagation
 - Quaternion attitude integration and normalization
-- Analytical constant-force, constant-moment, gravity, and constant-rate verification
-- Unreal runtime integration
+- U.S. Standard Atmosphere 1976 troposphere model
+- Local NED-origin altitude integration
+- Configurable steady wind in Navigation/NED axes
+- Seeded deterministic first-order turbulence
+- Air-relative velocity calculation
+- True airspeed, angle of attack, sideslip angle, dynamic pressure, and Mach number
+- Unreal runtime environment configuration and telemetry
+- Automated unit and integration verification
 
 Not yet implemented:
 
-- Atmospheric model
 - Aerodynamic force and moment model
 - Propulsion model
 - Landing-gear dynamics
@@ -146,11 +160,13 @@ Not yet implemented:
 
 The current Unreal runtime scenario initializes the aircraft with a constant forward body velocity to verify the complete core-to-Unreal state path. It intentionally uses synthetic mass and inertia properties with gravity disabled. These values are not Cessna 152 reference data and will be replaced by validated aircraft configuration data.
 
-Control inputs currently drive the control-surface model, but they do not yet generate aerodynamic forces or moments. The aircraft is therefore not yet expected to respond aerodynamically to pilot input.
+Control inputs currently drive the control-surface model, but they do not yet generate aerodynamic forces or moments. Wind and turbulence affect the calculated relative airflow and air data, but they do not yet generate aircraft motion because the aerodynamic model belongs to Phase 3.
+
+The current turbulence implementation is a seeded, deterministic first-order Gauss-Markov model intended for repeatable simulation and integration testing. It is not presented as a high-fidelity or certification-grade Dryden turbulence implementation.
 
 ## Automated Tests
 
-The project currently contains **27 passing automated tests**.
+The project currently contains **39 passing automated tests**.
 
 | Test group | Coverage | Tests |
 |---|---|---:|
@@ -159,11 +175,14 @@ The project currently contains **27 passing automated tests**.
 | Mass properties | Validation and inertia round trip | 2 |
 | Mathematics | Vector algebra, normalization, quaternion rotation and composition | 4 |
 | Rigid-body 6DOF | Constant force, constant moment, constant yaw rate, and gravity | 4 |
-| Simulation facade | Advance, reset, configuration, and rigid-body integration | 4 |
+| Standard atmosphere | Sea level, troposphere reference values, and invalid altitude handling | 3 |
+| Wind model | Steady wind, seeded determinism, and configuration validation | 3 |
+| Air data | Calm air, wind and axis conventions, zero-speed and invalid-input handling | 3 |
+| Simulation facade | Advance, reset, dynamics configuration, rigid-body integration, and environment integration | 7 |
 | Aircraft state | Default initialization and quaternion normalization | 2 |
 | Unreal aircraft-state adapter | Transform conversion and pose round trip | 2 |
 | Coordinate adapter | NED position, FRD body axes, and attitude conversion | 3 |
-| **Total** |  | **27** |
+| **Total** |  | **39** |
 
 Run all tests from the Unreal console:
 
@@ -242,11 +261,13 @@ Open `C152FlightSim.uproject` after the build completes.
 - [x] Gravity and constant-load verification
 - [x] Unreal Pawn runtime integration
 
-### Phase 2 — Atmosphere and Air Data
+### Phase 2 — Atmosphere and Air Data — Complete
 
-- [ ] Standard atmosphere
-- [ ] Wind and turbulence
-- [ ] Air-data calculations
+- [x] Standard atmosphere
+- [x] Wind and deterministic turbulence
+- [x] Air-data calculations
+- [x] Simulation environment integration
+- [x] Unreal runtime environment telemetry
 
 ### Phase 3 — Aircraft Flight Model
 

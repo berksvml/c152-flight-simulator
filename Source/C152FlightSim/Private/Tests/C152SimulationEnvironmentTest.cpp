@@ -16,6 +16,16 @@ namespace
     {
         return std::abs(Actual - Expected) <= Tolerance;
     }
+
+    bool IsVectorNear(
+        const C152::FlightDynamics::FVector3& Actual,
+        const C152::FlightDynamics::FVector3& Expected,
+        const double Tolerance = 1.0e-12)
+    {
+        return IsNear(Actual.X, Expected.X, Tolerance)
+            && IsNear(Actual.Y, Expected.Y, Tolerance)
+            && IsNear(Actual.Z, Expected.Z, Tolerance);
+    }
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -189,6 +199,129 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     TestFalse(
         TEXT("Environment can be cleared"),
         Simulation.IsEnvironmentConfigured());
+
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FC152SimulationEnvironmentTurbulenceTest,
+    "C152FlightSim.FlightDynamics.Simulation.EnvironmentTurbulence",
+    EAutomationTestFlags::EditorContext |
+    EAutomationTestFlags::EngineFilter)
+
+    bool FC152SimulationEnvironmentTurbulenceTest::RunTest(
+        const FString& Parameters)
+{
+    using namespace C152::FlightDynamics;
+    (void)Parameters;
+
+    FC152Simulation FirstSimulation;
+    FC152Simulation SecondSimulation;
+
+    FAircraftState InitialState{};
+    InitialState.VelocityBodyMetersPerSecond =
+        FVector3{ 10.0, 0.0, 0.0 };
+
+    FirstSimulation.Reset(InitialState);
+    SecondSimulation.Reset(InitialState);
+
+    FEnvironmentConfiguration Environment{};
+    Environment.OriginGeopotentialAltitudeMeters = 100.0;
+    Environment.WindVelocityNedMetersPerSecond =
+        FVector3{ 1.0, 0.0, 0.0 };
+
+    Environment
+        .TurbulenceStandardDeviationNedMetersPerSecond =
+        FVector3{ 0.5, 0.25, 0.1 };
+
+    Environment.TurbulenceCorrelationTimeSeconds = 1.5;
+    Environment.TurbulenceRandomSeed = 424242U;
+
+    if (!FirstSimulation.SetEnvironmentConfiguration(Environment)
+        || !SecondSimulation.SetEnvironmentConfiguration(Environment))
+    {
+        AddError(TEXT("Test environment configuration was rejected"));
+        return false;
+    }
+
+    bool bSequencesMatch = true;
+    bool bTurbulenceGenerated = false;
+
+    std::uint32_t FirstStepCount = 0U;
+    std::uint32_t SecondStepCount = 0U;
+
+    for (std::uint32_t StepIndex = 0U;
+        StepIndex < 120U;
+        ++StepIndex)
+    {
+        FirstStepCount += FirstSimulation.Advance(
+            FControlCommand{},
+            FirstSimulation.GetFixedDeltaSeconds());
+
+        SecondStepCount += SecondSimulation.Advance(
+            FControlCommand{},
+            SecondSimulation.GetFixedDeltaSeconds());
+
+        bSequencesMatch =
+            bSequencesMatch
+            && IsVectorNear(
+                FirstSimulation
+                .GetWindVelocityNedMetersPerSecond(),
+                SecondSimulation
+                .GetWindVelocityNedMetersPerSecond());
+
+        bTurbulenceGenerated =
+            bTurbulenceGenerated
+            || FirstSimulation
+            .GetTurbulenceVelocityNedMetersPerSecond()
+            .NormSquared() > 0.0;
+    }
+
+    TestEqual(
+        TEXT("First simulation executes 120 fixed steps"),
+        FirstStepCount,
+        static_cast<std::uint32_t>(120U));
+
+    TestEqual(
+        TEXT("Second simulation executes 120 fixed steps"),
+        SecondStepCount,
+        static_cast<std::uint32_t>(120U));
+
+    TestTrue(
+        TEXT("Equal seeds produce equal simulation wind sequences"),
+        bSequencesMatch);
+
+    TestTrue(
+        TEXT("Simulation environment produces turbulence"),
+        bTurbulenceGenerated);
+
+    TestTrue(
+        TEXT("Environment updates remain successful"),
+        FirstSimulation.WasLastDynamicsStepSuccessful()
+        && SecondSimulation.WasLastDynamicsStepSuccessful());
+
+    FAtmosphereState Atmosphere{};
+    FAirData AirData{};
+
+    const bool bSampleSucceeded =
+        FirstSimulation.TryGetEnvironmentSample(
+            Atmosphere,
+            AirData);
+
+    TestTrue(
+        TEXT("Air-data sample succeeds after turbulence updates"),
+        bSampleSucceeded);
+
+    const FVector3 ExpectedRelativeVelocity =
+        InitialState.VelocityBodyMetersPerSecond
+        - FirstSimulation
+        .GetWindVelocityNedMetersPerSecond();
+
+    TestTrue(
+        TEXT("Air data uses the current turbulent wind"),
+        IsVectorNear(
+            AirData.RelativeVelocityBodyMetersPerSecond,
+            ExpectedRelativeVelocity));
 
     return true;
 }

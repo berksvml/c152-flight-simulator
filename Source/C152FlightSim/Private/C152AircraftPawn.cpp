@@ -181,6 +181,23 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 					AirDataSample.SideslipAngleRadians),
 				AirDataSample.DynamicPressurePascals,
 				AirDataSample.MachNumber);
+
+			const C152::FlightDynamics::FVector3& CurrentWind =
+				Simulation.GetWindVelocityNedMetersPerSecond();
+
+			const C152::FlightDynamics::FVector3& CurrentTurbulence =
+				Simulation.GetTurbulenceVelocityNedMetersPerSecond();
+
+			DebugText += FString::Printf(
+				TEXT(
+					"\nWind NED  N: %.2f | E: %.2f | D: %.2f m/s"
+					"\nTurbulence NED  N: %.2f | E: %.2f | D: %.2f m/s"),
+				CurrentWind.X,
+				CurrentWind.Y,
+				CurrentWind.Z,
+				CurrentTurbulence.X,
+				CurrentTurbulence.Y,
+				CurrentTurbulence.Z);
 		}
 		else
 		{
@@ -416,6 +433,21 @@ InitializeSimulationFromActorTransform()
 		WindVelocityNedMetersPerSecond.Y,
 		WindVelocityNedMetersPerSecond.Z
 	};
+
+	Environment
+		.TurbulenceStandardDeviationNedMetersPerSecond =
+		FVector3{
+			TurbulenceStandardDeviationNedMetersPerSecond.X,
+			TurbulenceStandardDeviationNedMetersPerSecond.Y,
+			TurbulenceStandardDeviationNedMetersPerSecond.Z
+	};
+
+	Environment.TurbulenceCorrelationTimeSeconds =
+		TurbulenceCorrelationTimeSeconds;
+
+	Environment.TurbulenceRandomSeed =
+		static_cast<std::uint32_t>(
+			FMath::Max(TurbulenceRandomSeed, 0));
 
 	if (!Simulation.SetEnvironmentConfiguration(Environment))
 	{

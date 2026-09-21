@@ -23,6 +23,11 @@ namespace C152::FlightDynamics
         ControlSurfaceModel.Reset();
         SimulationClock.Reset();
 
+        if (bEnvironmentConfigured)
+        {
+            WindModel.Reset();
+        }
+
         bLastDynamicsStepSuccessful = true;
     }
 
@@ -35,9 +40,28 @@ namespace C152::FlightDynamics
         if (!std::isfinite(OriginAltitude)
             || OriginAltitude < 0.0
             || OriginAltitude
-            > FStandardAtmosphere::MaxGeopotentialAltitudeMeters
-            || !Configuration
-            .WindVelocityNedMetersPerSecond.IsFinite())
+            > FStandardAtmosphere::MaxGeopotentialAltitudeMeters)
+        {
+            return false;
+        }
+
+        FWindModelConfiguration WindConfiguration{};
+
+        WindConfiguration.SteadyWindVelocityNedMetersPerSecond =
+            Configuration.WindVelocityNedMetersPerSecond;
+
+        WindConfiguration
+            .TurbulenceStandardDeviationNedMetersPerSecond =
+            Configuration
+            .TurbulenceStandardDeviationNedMetersPerSecond;
+
+        WindConfiguration.TurbulenceCorrelationTimeSeconds =
+            Configuration.TurbulenceCorrelationTimeSeconds;
+
+        WindConfiguration.RandomSeed =
+            Configuration.TurbulenceRandomSeed;
+
+        if (!WindModel.Configure(WindConfiguration))
         {
             return false;
         }
@@ -51,12 +75,27 @@ namespace C152::FlightDynamics
     void FC152Simulation::ClearEnvironmentConfiguration()
     {
         EnvironmentConfiguration = FEnvironmentConfiguration{};
+        WindModel.Clear();
         bEnvironmentConfigured = false;
     }
 
     bool FC152Simulation::IsEnvironmentConfigured() const
     {
         return bEnvironmentConfigured;
+    }
+
+    const FVector3&
+        FC152Simulation::GetWindVelocityNedMetersPerSecond() const
+    {
+        return WindModel.GetWindVelocityNedMetersPerSecond();
+    }
+
+    const FVector3&
+        FC152Simulation::
+        GetTurbulenceVelocityNedMetersPerSecond() const
+    {
+        return WindModel
+            .GetTurbulenceVelocityNedMetersPerSecond();
     }
 
     bool FC152Simulation::TryGetEnvironmentSample(
@@ -88,8 +127,7 @@ namespace C152::FlightDynamics
         if (!FAirDataModel::TryEvaluate(
             AircraftState,
             AtmosphereSample,
-            EnvironmentConfiguration
-            .WindVelocityNedMetersPerSecond,
+            WindModel.GetWindVelocityNedMetersPerSecond(),
             AirDataSample))
         {
             return false;
@@ -196,6 +234,12 @@ namespace C152::FlightDynamics
         const FControlCommand& Command,
         const double FixedDeltaSeconds)
     {
+        if (bEnvironmentConfigured
+            && !WindModel.Update(FixedDeltaSeconds))
+        {
+            return false;
+        }
+
         ControlSurfaceModel.Update(
             Command,
             FixedDeltaSeconds);

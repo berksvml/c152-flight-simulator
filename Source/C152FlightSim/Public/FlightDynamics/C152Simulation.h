@@ -7,6 +7,7 @@
 #include "FlightDynamics/RigidBody6DofModel.h"
 #include "FlightDynamics/AirDataModel.h"
 #include "FlightDynamics/StandardAtmosphere.h"
+#include "FlightDynamics/WindModel.h"
 
 #include <cstdint>
 
@@ -17,8 +18,17 @@ namespace C152::FlightDynamics
         // Geopotential altitude of the local NED origin above mean sea level [m].
         double OriginGeopotentialAltitudeMeters = 0.0;
 
-        // Velocity of the air mass in Navigation/NED axes [m/s].
+        // Mean air-mass velocity in Navigation/NED axes [m/s].
         FVector3 WindVelocityNedMetersPerSecond{};
+
+        // Standard deviation of zero-mean turbulence in NED axes [m/s].
+        FVector3 TurbulenceStandardDeviationNedMetersPerSecond{};
+
+        // Shared first-order turbulence correlation time [s].
+        double TurbulenceCorrelationTimeSeconds = 1.0;
+
+        // Equal seeds produce equal turbulence sequences.
+        std::uint32_t TurbulenceRandomSeed = 1U;
     };
 
     struct FC152SimulationConfiguration
@@ -87,6 +97,14 @@ namespace C152::FlightDynamics
             FAtmosphereState& OutAtmosphere,
             FAirData& OutAirData) const;
 
+        [[nodiscard]]
+        const FVector3&
+            GetWindVelocityNedMetersPerSecond() const;
+
+        [[nodiscard]]
+        const FVector3&
+            GetTurbulenceVelocityNedMetersPerSecond() const;
+
     private:
         [[nodiscard]]
         bool Step(
@@ -102,6 +120,7 @@ namespace C152::FlightDynamics
         FC152SimulationConfiguration DynamicsConfiguration{};
         FBodyForcesAndMoments AppliedBodyLoads{};
         FEnvironmentConfiguration EnvironmentConfiguration{};
+        FWindModel WindModel;
 
         bool bEnvironmentConfigured = false;
         bool bDynamicsConfigured = false;
