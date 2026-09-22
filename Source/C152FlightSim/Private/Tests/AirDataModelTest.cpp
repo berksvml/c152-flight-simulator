@@ -92,11 +92,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
         288.15, 101325.0, 1.225, 340.0
     };
 
-    constexpr double Pi =
+    constexpr double AirDataPi =
         3.14159265358979323846;
 
     const double HalfYaw =
-        Pi / 4.0;
+        AirDataPi / 4.0;
 
     FAircraftState Aircraft{};
     Aircraft.VelocityBodyMetersPerSecond =

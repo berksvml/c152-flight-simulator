@@ -17,7 +17,7 @@ namespace
         return std::abs(Actual - Expected) <= Tolerance;
     }
 
-    bool IsVectorNear(
+    bool IsSimulationEnvironmentVectorNear(
         const C152::FlightDynamics::FVector3& Actual,
         const C152::FlightDynamics::FVector3& Expected,
         const double Tolerance = 1.0e-12)
@@ -264,7 +264,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
         bSequencesMatch =
             bSequencesMatch
-            && IsVectorNear(
+            && IsSimulationEnvironmentVectorNear(
                 FirstSimulation
                 .GetWindVelocityNedMetersPerSecond(),
                 SecondSimulation
@@ -319,7 +319,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Air data uses the current turbulent wind"),
-        IsVectorNear(
+        IsSimulationEnvironmentVectorNear(
             AirData.RelativeVelocityBodyMetersPerSecond,
             ExpectedRelativeVelocity));
 

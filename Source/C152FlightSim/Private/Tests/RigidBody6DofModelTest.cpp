@@ -146,7 +146,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     (void)Parameters;
 
-    constexpr double Pi = 3.14159265358979323846;
+    constexpr double RigidBody6DofModelPi = 3.14159265358979323846;
 
     FRigidBody6DofModel Model;
     FAircraftState State{};
@@ -155,7 +155,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     State.AngularRateBodyRadiansPerSecond = {
         0.0,
         0.0,
-        0.5 * Pi
+        0.5 * RigidBody6DofModelPi
     };
 
     bool bAllStepsSucceeded = true;

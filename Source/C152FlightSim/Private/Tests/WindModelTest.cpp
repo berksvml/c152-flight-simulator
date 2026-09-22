@@ -16,7 +16,7 @@ namespace
         return std::abs(Actual - Expected) <= Tolerance;
     }
 
-    bool IsVectorNear(
+    bool IsWindModelVectorNear(
         const C152::FlightDynamics::FVector3& Actual,
         const C152::FlightDynamics::FVector3& Expected,
         const double Tolerance = 1.0e-12)
@@ -51,7 +51,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Initial output equals the steady wind"),
-        IsVectorNear(
+        IsWindModelVectorNear(
             WindModel.GetWindVelocityNedMetersPerSecond(),
             Configuration.SteadyWindVelocityNedMetersPerSecond));
 
@@ -61,13 +61,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Zero turbulence preserves steady wind"),
-        IsVectorNear(
+        IsWindModelVectorNear(
             WindModel.GetWindVelocityNedMetersPerSecond(),
             Configuration.SteadyWindVelocityNedMetersPerSecond));
 
     TestTrue(
         TEXT("Zero turbulence produces no fluctuation"),
-        IsVectorNear(
+        IsWindModelVectorNear(
             WindModel.GetTurbulenceVelocityNedMetersPerSecond(),
             FVector3{}));
 
@@ -129,7 +129,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
         bSequencesMatch =
             bSequencesMatch
-            && IsVectorNear(
+            && IsWindModelVectorNear(
                 FirstModel.GetWindVelocityNedMetersPerSecond(),
                 SecondModel.GetWindVelocityNedMetersPerSecond());
 
@@ -152,7 +152,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Reset returns output to steady wind"),
-        IsVectorNear(
+        IsWindModelVectorNear(
             FirstModel.GetWindVelocityNedMetersPerSecond(),
             Configuration.SteadyWindVelocityNedMetersPerSecond));
 
@@ -162,7 +162,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Reset reproduces the original first sample"),
-        IsVectorNear(
+        IsWindModelVectorNear(
             FirstModel.GetWindVelocityNedMetersPerSecond(),
             FirstSample));
 
@@ -216,7 +216,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Rejected update preserves wind state"),
-        IsVectorNear(
+        IsWindModelVectorNear(
             WindModel.GetWindVelocityNedMetersPerSecond(),
             WindBeforeInvalidUpdate));
 
