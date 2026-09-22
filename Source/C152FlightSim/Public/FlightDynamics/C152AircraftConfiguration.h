@@ -35,6 +35,21 @@ namespace C152::FlightDynamics
 			double CenterOfGravityMetersAftOfDatum) const;
 	};
 
+	struct FC152GeometryReference
+	{
+		double ReferenceWingAreaSquareMeters{ 0.0 };
+		double ReferenceWingSpanMeters{ 0.0 };
+
+		[[nodiscard]]
+		bool IsValid() const;
+
+		[[nodiscard]]
+		double GetEquivalentRectangularChordMeters() const;
+
+		[[nodiscard]]
+		double GetAspectRatio() const;
+	};
+
 	struct FC152PropulsionReference
 	{
 		// Reference engine rating. This is not yet a propulsion model.
@@ -51,6 +66,7 @@ namespace C152::FlightDynamics
 	struct FC152AircraftConfiguration
 	{
 		FC152MassAndBalanceLimits MassAndBalance{};
+		FC152GeometryReference Geometry{};
 		FC152PropulsionReference Propulsion{};
 
 		[[nodiscard]]

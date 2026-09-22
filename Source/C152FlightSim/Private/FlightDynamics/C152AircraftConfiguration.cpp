@@ -2,9 +2,10 @@
 
 #include <cmath>
 
-namespace
+namespace C152AircraftConfigurationConstants
 {
-	constexpr double MinimumPositiveValue = 1.0e-12;
+	constexpr double MinimumPositiveValue =
+		1.0e-12;
 
 	constexpr double KilogramsPerPound =
 		0.45359237;
@@ -12,10 +13,16 @@ namespace
 	constexpr double MetersPerInch =
 		0.0254;
 
+	constexpr double MetersPerFoot =
+		0.3048;
+
+	constexpr double SquareMetersPerSquareFoot =
+		0.09290304;
+
 	constexpr double WattsPerMechanicalHorsepower =
 		745.6998715822702;
 
-	constexpr double TwoPi =
+	constexpr double TwoPiRadians =
 		6.28318530717958647692;
 
 	constexpr double SecondsPerMinute =
@@ -25,13 +32,56 @@ namespace
 		const double RevolutionsPerMinute)
 	{
 		return RevolutionsPerMinute
-			* TwoPi
+			* TwoPiRadians
 			/ SecondsPerMinute;
 	}
 }
 
 namespace C152::FlightDynamics
 {
+	bool FC152GeometryReference::IsValid() const
+	{
+		const bool bValuesAreFinite =
+			std::isfinite(ReferenceWingAreaSquareMeters)
+			&& std::isfinite(ReferenceWingSpanMeters);
+
+		if (!bValuesAreFinite)
+		{
+			return false;
+		}
+
+		return ReferenceWingAreaSquareMeters
+				> C152AircraftConfigurationConstants::
+			MinimumPositiveValue
+			&& ReferenceWingSpanMeters
+				> C152AircraftConfigurationConstants::
+			MinimumPositiveValue;
+	}
+
+	double FC152GeometryReference::
+		GetEquivalentRectangularChordMeters() const
+	{
+		if (!IsValid())
+		{
+			return 0.0;
+		}
+
+		return ReferenceWingAreaSquareMeters
+			/ ReferenceWingSpanMeters;
+	}
+
+	double FC152GeometryReference::GetAspectRatio() const
+	{
+		if (!IsValid())
+		{
+			return 0.0;
+		}
+
+		return ReferenceWingSpanMeters
+			* ReferenceWingSpanMeters
+			/ ReferenceWingAreaSquareMeters;
+	}
+
 	bool FC152MassAndBalanceLimits::IsValid() const
 	{
 		const bool bValuesAreFinite =
@@ -50,12 +100,16 @@ namespace C152::FlightDynamics
 			return false;
 		}
 
+		constexpr double MinimumAllowedPositiveValue =
+			C152AircraftConfigurationConstants::
+			MinimumPositiveValue;
+
 		if (MaximumTakeoffMassKilograms
-			<= MinimumPositiveValue
+			<= MinimumAllowedPositiveValue
 			|| MaximumRampMassKilograms
 			< MaximumTakeoffMassKilograms
 			|| LightMassBreakPointKilograms
-			<= MinimumPositiveValue
+			<= MinimumAllowedPositiveValue
 			|| LightMassBreakPointKilograms
 			>= MaximumTakeoffMassKilograms)
 		{
@@ -63,7 +117,7 @@ namespace C152::FlightDynamics
 		}
 
 		if (ForwardLimitAtOrBelowLightMassMetersAftOfDatum
-			<= MinimumPositiveValue
+			<= MinimumAllowedPositiveValue
 			|| ForwardLimitAtMaximumMassMetersAftOfDatum
 			< ForwardLimitAtOrBelowLightMassMetersAftOfDatum
 			|| AftLimitMetersAftOfDatum
@@ -83,7 +137,9 @@ namespace C152::FlightDynamics
 	{
 		if (!IsValid()
 			|| !std::isfinite(MassKilograms)
-			|| MassKilograms <= MinimumPositiveValue
+			|| MassKilograms
+			<= C152AircraftConfigurationConstants::
+			MinimumPositiveValue
 			|| MassKilograms > MaximumTakeoffMassKilograms)
 		{
 			return false;
@@ -164,11 +220,15 @@ namespace C152::FlightDynamics
 			return false;
 		}
 
-		return RatedPowerWatts > MinimumPositiveValue
+		return RatedPowerWatts
+			> C152AircraftConfigurationConstants::
+			MinimumPositiveValue
 			&& RatedEngineSpeedRadiansPerSecond
-				> MinimumPositiveValue
+				> C152AircraftConfigurationConstants::
+			MinimumPositiveValue
 			&& MinimumPropellerDiameterMeters
-				> MinimumPositiveValue
+				> C152AircraftConfigurationConstants::
+			MinimumPositiveValue
 			&& MaximumPropellerDiameterMeters
 			>= MinimumPropellerDiameterMeters;
 	}
@@ -176,6 +236,7 @@ namespace C152::FlightDynamics
 	bool FC152AircraftConfiguration::IsValid() const
 	{
 		return MassAndBalance.IsValid()
+			&& Geometry.IsValid()
 			&& Propulsion.IsValid();
 	}
 
@@ -185,47 +246,80 @@ namespace C152::FlightDynamics
 		FC152AircraftConfiguration Configuration{};
 
 		// FAA TCDS 3A19, Model 152.
+
+		// Cessna 1979 Model 152 Information Manual, Figure 1-1.
+		// Wing area: 159.5 ft^2.
+		// Span: 33 ft 4 in with conical-camber wing tips and strobes.
+		Configuration.Geometry.ReferenceWingAreaSquareMeters =
+			159.5
+			* C152AircraftConfigurationConstants::
+			SquareMetersPerSquareFoot;
+
+		Configuration.Geometry.ReferenceWingSpanMeters =
+			(33.0 + 4.0 / 12.0)
+			* C152AircraftConfigurationConstants::
+			MetersPerFoot;
 		Configuration.MassAndBalance
 			.MaximumTakeoffMassKilograms =
-			1670.0 * KilogramsPerPound;
+			1670.0
+			* C152AircraftConfigurationConstants::
+			KilogramsPerPound;
 
 		Configuration.MassAndBalance
 			.MaximumRampMassKilograms =
-			1675.0 * KilogramsPerPound;
+			1675.0
+			* C152AircraftConfigurationConstants::
+			KilogramsPerPound;
 
 		Configuration.MassAndBalance
 			.LightMassBreakPointKilograms =
-			1350.0 * KilogramsPerPound;
+			1350.0
+			* C152AircraftConfigurationConstants::
+			KilogramsPerPound;
 
 		Configuration.MassAndBalance
 			.ForwardLimitAtOrBelowLightMassMetersAftOfDatum =
-			31.0 * MetersPerInch;
+			31.0
+			* C152AircraftConfigurationConstants::
+			MetersPerInch;
 
 		Configuration.MassAndBalance
 			.ForwardLimitAtMaximumMassMetersAftOfDatum =
-			32.65 * MetersPerInch;
+			32.65
+			* C152AircraftConfigurationConstants::
+			MetersPerInch;
 
 		Configuration.MassAndBalance
 			.AftLimitMetersAftOfDatum =
-			36.5 * MetersPerInch;
+			36.5
+			* C152AircraftConfigurationConstants::
+			MetersPerInch;
 
 		// Lycoming O-235-L2C reference rating.
 		Configuration.Propulsion.RatedPowerWatts =
-			110.0 * WattsPerMechanicalHorsepower;
+			110.0
+			* C152AircraftConfigurationConstants::
+			WattsPerMechanicalHorsepower;
 
 		Configuration.Propulsion
 			.RatedEngineSpeedRadiansPerSecond =
+			C152AircraftConfigurationConstants::
 			RevolutionsPerMinuteToRadiansPerSecond(
 				2550.0);
 
 		Configuration.Propulsion
 			.MinimumPropellerDiameterMeters =
-			67.5 * MetersPerInch;
+			67.5
+			* C152AircraftConfigurationConstants::
+			MetersPerInch;
 
 		Configuration.Propulsion
 			.MaximumPropellerDiameterMeters =
-			69.0 * MetersPerInch;
+			69.0
+			* C152AircraftConfigurationConstants::
+			MetersPerInch;
 
 		return Configuration;
 	}
+	
 }

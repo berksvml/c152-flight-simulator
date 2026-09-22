@@ -241,4 +241,67 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FC152AircraftGeometryReferenceTest,
+	"C152FlightSim.FlightDynamics."
+	"AircraftConfiguration.Geometry",
+	EAutomationTestFlags::EditorContext
+	| EAutomationTestFlags::EngineFilter)
+
+	bool FC152AircraftGeometryReferenceTest::RunTest(
+		const FString& Parameters)
+{
+	using namespace C152::FlightDynamics;
+
+	(void)Parameters;
+
+	const FC152AircraftConfiguration Configuration =
+		FC152AircraftConfiguration::Create1979Model152();
+
+	TestTrue(
+		TEXT("Geometry reference is valid"),
+		Configuration.Geometry.IsValid());
+
+	TestTrue(
+		TEXT("Reference wing area matches the 1979 manual"),
+		IsAircraftConfigurationValueNear(
+			Configuration.Geometry
+			.ReferenceWingAreaSquareMeters,
+			14.81803488,
+			1.0e-9));
+
+	TestTrue(
+		TEXT("Reference wing span matches the 1979 manual"),
+		IsAircraftConfigurationValueNear(
+			Configuration.Geometry.ReferenceWingSpanMeters,
+			10.16,
+			1.0e-9));
+
+	TestTrue(
+		TEXT("Equivalent rectangular chord is derived correctly"),
+		IsAircraftConfigurationValueNear(
+			Configuration.Geometry
+			.GetEquivalentRectangularChordMeters(),
+			1.458468,
+			1.0e-9));
+
+	TestTrue(
+		TEXT("Wing aspect ratio is derived correctly"),
+		IsAircraftConfigurationValueNear(
+			Configuration.Geometry.GetAspectRatio(),
+			6.966213862765589,
+			1.0e-9));
+
+	FC152GeometryReference InvalidGeometry =
+		Configuration.Geometry;
+
+	InvalidGeometry.ReferenceWingAreaSquareMeters = 0.0;
+
+	TestFalse(
+		TEXT("Zero wing area is rejected"),
+		InvalidGeometry.IsValid());
+
+	return true;
+}
+
 #endif
