@@ -35,6 +35,30 @@ namespace C152AircraftConfigurationConstants
 			* TwoPiRadians
 			/ SecondsPerMinute;
 	}
+
+	constexpr double SecondsPerHour =
+		3600.0;
+
+	constexpr double FuelWeightPoundsPerUsGallon =
+		6.0;
+
+	constexpr double StandardUsableFuelGallons =
+		24.5;
+
+	constexpr double ReferenceCruisePowerFraction =
+		0.75;
+
+	constexpr double ReferenceCruiseFuelFlowGallonsPerHour =
+		6.1;
+
+	constexpr double UsGallonsPerHourToKilogramsPerSecond(
+		const double GallonsPerHour)
+	{
+		return GallonsPerHour
+			* FuelWeightPoundsPerUsGallon
+			* KilogramsPerPound
+			/ SecondsPerHour;
+	}
 }
 
 namespace C152::FlightDynamics
@@ -237,8 +261,11 @@ namespace C152::FlightDynamics
 	{
 		return MassAndBalance.IsValid()
 			&& Geometry.IsValid()
+			&& DevelopmentAerodynamicEstimate.IsValid()
 			&& DevelopmentMassPropertiesEstimate.IsValid()
-			&& Propulsion.IsValid();
+			&& Propulsion.IsValid()
+			&& DevelopmentPropulsionEstimate.IsValid()
+			&& DevelopmentFuelEstimate.IsValid();
 	}
 
 	FC152AircraftConfiguration
@@ -260,6 +287,66 @@ namespace C152::FlightDynamics
 			(33.0 + 4.0 / 12.0)
 			* C152AircraftConfigurationConstants::
 			MetersPerFoot;
+
+		// Initial longitudinal aerodynamic development estimate.
+//
+// The drag polar is derived approximately from the published
+// maximum-glide condition:
+// - 60 KCAS
+// - maximum takeoff mass
+// - ISA sea-level density
+// - approximately 16 NM horizontal distance per 10,000 ft
+//
+// The resulting engine-out polar includes the influence of a
+// windmilling propeller and is not treated as a powered-flight
+// manufacturer polar.
+//
+// Lift, stability, damping, and elevator derivatives below are
+// initial engineering estimates. They must later be calibrated
+// against trim, stall, climb, and flight-test reference data.
+
+		FAerodynamicModelConfiguration& Aerodynamics =
+			Configuration.DevelopmentAerodynamicEstimate;
+
+		Aerodynamics.WingAreaSquareMeters =
+			Configuration.Geometry.ReferenceWingAreaSquareMeters;
+
+		Aerodynamics.ReferenceChordMeters =
+			Configuration.Geometry
+			.GetEquivalentRectangularChordMeters();
+
+		Aerodynamics.LiftCoefficientAtZeroAlpha =
+			0.25;
+
+		Aerodynamics.LiftCurveSlopePerRadian =
+			4.8;
+
+		// Positive elevator state represents a nose-up command.
+		// The direct lift contribution is negative because additional
+		// tail downforce reduces total aircraft lift.
+		Aerodynamics.LiftCoefficientPerElevatorRadian =
+			-0.30;
+
+		Aerodynamics.ZeroLiftDragCoefficient =
+			0.0442;
+
+		Aerodynamics.InducedDragFactor =
+			0.0599;
+
+		Aerodynamics.PitchMomentCoefficientAtZeroAlpha =
+			0.05;
+
+		// Negative value provides longitudinal static stability.
+		Aerodynamics.PitchMomentSlopePerRadian =
+			-0.80;
+
+		// Negative value opposes pitch rate.
+		Aerodynamics.PitchDampingDerivative =
+			-12.0;
+
+		// Positive elevator state produces a nose-up pitching moment.
+		Aerodynamics.PitchMomentPerElevatorRadian =
+			1.10;
 
 		// Development estimate based on the simplified Cessna 152
 		// model documented by Krawczyk et al. (2024),
@@ -352,6 +439,48 @@ namespace C152::FlightDynamics
 			69.0
 			* C152AircraftConfigurationConstants::
 			MetersPerInch;
+
+		FPropulsionModelConfiguration& PropulsionEstimate =
+			Configuration.DevelopmentPropulsionEstimate;
+
+		PropulsionEstimate.RatedPowerWatts =
+			Configuration.Propulsion.RatedPowerWatts;
+
+		PropulsionEstimate.PropellerDiameterMeters =
+			0.5
+			* (Configuration.Propulsion
+				.MinimumPropellerDiameterMeters
+				+ Configuration.Propulsion
+				.MaximumPropellerDiameterMeters);
+
+		PropulsionEstimate.PropellerProfileEfficiency =
+			0.80;
+
+		PropulsionEstimate
+			.SeaLevelDensityKilogramsPerCubicMeter =
+			1.225;
+
+		FFuelModelConfiguration& FuelEstimate =
+			Configuration.DevelopmentFuelEstimate;
+
+		FuelEstimate.UsableFuelCapacityKilograms =
+			C152AircraftConfigurationConstants::
+			StandardUsableFuelGallons
+			* C152AircraftConfigurationConstants::
+			FuelWeightPoundsPerUsGallon
+			* C152AircraftConfigurationConstants::
+			KilogramsPerPound;
+
+		const double EstimatedRatedPowerFuelFlowGallonsPerHour =
+			C152AircraftConfigurationConstants::
+			ReferenceCruiseFuelFlowGallonsPerHour
+			/ C152AircraftConfigurationConstants::
+			ReferenceCruisePowerFraction;
+
+		FuelEstimate.FuelFlowAtRatedPowerKilogramsPerSecond =
+			C152AircraftConfigurationConstants::
+			UsGallonsPerHourToKilogramsPerSecond(
+				EstimatedRatedPowerFuelFlowGallonsPerHour);
 
 		return Configuration;
 	}

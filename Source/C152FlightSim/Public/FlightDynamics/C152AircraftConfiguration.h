@@ -1,5 +1,8 @@
 #pragma once
 
+#include "FlightDynamics/AerodynamicModel.h"
+#include "FlightDynamics/PropulsionModel.h"
+#include "FlightDynamics/FuelModel.h"
 #include "FlightDynamics/AircraftMassProperties.h"
 
 namespace C152::FlightDynamics
@@ -70,11 +73,18 @@ namespace C152::FlightDynamics
 		FC152MassAndBalanceLimits MassAndBalance{};
 		FC152GeometryReference Geometry{};
 
+		FAerodynamicModelConfiguration DevelopmentAerodynamicEstimate{};
+
 		// Simplified research-model baseline for development.
 		// These are not measured or manufacturer-published inertia data.
 		FAircraftMassProperties DevelopmentMassPropertiesEstimate{};
 
 		FC152PropulsionReference Propulsion{};
+
+		FPropulsionModelConfiguration
+			DevelopmentPropulsionEstimate{};
+
+		FFuelModelConfiguration DevelopmentFuelEstimate{};
 
 		[[nodiscard]]
 		bool IsValid() const;
