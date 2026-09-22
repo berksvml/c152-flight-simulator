@@ -237,6 +237,7 @@ namespace C152::FlightDynamics
 	{
 		return MassAndBalance.IsValid()
 			&& Geometry.IsValid()
+			&& DevelopmentMassPropertiesEstimate.IsValid()
 			&& Propulsion.IsValid();
 	}
 
@@ -259,6 +260,39 @@ namespace C152::FlightDynamics
 			(33.0 + 4.0 / 12.0)
 			* C152AircraftConfigurationConstants::
 			MetersPerFoot;
+
+		// Development estimate based on the simplified Cessna 152
+		// model documented by Krawczyk et al. (2024),
+		// Aerospace 11(10), 830, Table 3.
+		// DOI: 10.3390/aerospace11100830
+		//
+		// The paper assumes uniform component mass distributions.
+		// These values are not measured or manufacturer-published
+		// Cessna 152 mass properties.
+
+		Configuration.DevelopmentMassPropertiesEstimate.MassKilograms =
+			650.0;
+
+		Configuration.DevelopmentMassPropertiesEstimate
+			.InertiaXxKilogramMetersSquared =
+			1420.9;
+
+		Configuration.DevelopmentMassPropertiesEstimate
+			.InertiaYyKilogramMetersSquared =
+			4067.5;
+
+		Configuration.DevelopmentMassPropertiesEstimate
+			.InertiaZzKilogramMetersSquared =
+			4786.0;
+
+		// The simplified symmetric reference model does not provide
+		// a non-zero XZ product of inertia.
+		Configuration.DevelopmentMassPropertiesEstimate
+			.ProductOfInertiaXzKilogramMetersSquared =
+			0.0;
+
+		// FAA TCDS 3A19, Model 152.
+
 		Configuration.MassAndBalance
 			.MaximumTakeoffMassKilograms =
 			1670.0

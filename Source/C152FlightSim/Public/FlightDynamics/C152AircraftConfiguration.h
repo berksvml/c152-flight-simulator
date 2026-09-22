@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FlightDynamics/AircraftMassProperties.h"
+
 namespace C152::FlightDynamics
 {
 	struct FC152MassAndBalanceLimits
@@ -67,6 +69,11 @@ namespace C152::FlightDynamics
 	{
 		FC152MassAndBalanceLimits MassAndBalance{};
 		FC152GeometryReference Geometry{};
+
+		// Simplified research-model baseline for development.
+		// These are not measured or manufacturer-published inertia data.
+		FAircraftMassProperties DevelopmentMassPropertiesEstimate{};
+
 		FC152PropulsionReference Propulsion{};
 
 		[[nodiscard]]

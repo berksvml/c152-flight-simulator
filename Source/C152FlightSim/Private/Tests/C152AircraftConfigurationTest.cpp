@@ -304,4 +304,72 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FC152DevelopmentMassPropertiesEstimateTest,
+	"C152FlightSim.FlightDynamics."
+	"AircraftConfiguration.DevelopmentMassPropertiesEstimate",
+	EAutomationTestFlags::EditorContext
+	| EAutomationTestFlags::EngineFilter)
+
+	bool FC152DevelopmentMassPropertiesEstimateTest::RunTest(
+		const FString& Parameters)
+{
+	using namespace C152::FlightDynamics;
+
+	(void)Parameters;
+
+	const FC152AircraftConfiguration Configuration =
+		FC152AircraftConfiguration::Create1979Model152();
+
+	const FAircraftMassProperties& Estimate =
+		Configuration.DevelopmentMassPropertiesEstimate;
+
+	TestTrue(
+		TEXT("Development mass properties estimate is valid"),
+		Estimate.IsValid());
+
+	TestTrue(
+		TEXT("Reference mass matches the research model"),
+		IsAircraftConfigurationValueNear(
+			Estimate.MassKilograms,
+			650.0));
+
+	TestTrue(
+		TEXT("Development roll inertia matches the reference"),
+		IsAircraftConfigurationValueNear(
+			Estimate.InertiaXxKilogramMetersSquared,
+			1420.9));
+
+	TestTrue(
+		TEXT("Development pitch inertia matches the reference"),
+		IsAircraftConfigurationValueNear(
+			Estimate.InertiaYyKilogramMetersSquared,
+			4067.5));
+
+	TestTrue(
+		TEXT("Development yaw inertia matches the reference"),
+		IsAircraftConfigurationValueNear(
+			Estimate.InertiaZzKilogramMetersSquared,
+			4786.0));
+
+	TestTrue(
+		TEXT("Symmetric estimate has zero XZ product of inertia"),
+		IsAircraftConfigurationValueNear(
+			Estimate.ProductOfInertiaXzKilogramMetersSquared,
+			0.0));
+
+	FC152AircraftConfiguration InvalidConfiguration =
+		Configuration;
+
+	InvalidConfiguration.DevelopmentMassPropertiesEstimate
+		.InertiaYyKilogramMetersSquared =
+		0.0;
+
+	TestFalse(
+		TEXT("Configuration rejects invalid development inertia"),
+		InvalidConfiguration.IsValid());
+
+	return true;
+}
+
 #endif
