@@ -59,6 +59,34 @@ namespace C152AircraftConfigurationConstants
 			* KilogramsPerPound
 			/ SecondsPerHour;
 	}
+
+	constexpr double C152WheelbaseMeters =
+		58.0 * MetersPerInch;
+
+	constexpr double C152MainGearTrackMeters =
+		(7.0 * 12.0 + 7.25) * MetersPerInch;
+
+	// Development estimates, not manufacturer-published geometry.
+	constexpr double DevelopmentMainGearAftOffsetMeters =
+		9.0 * MetersPerInch;
+
+	constexpr double DevelopmentGroundContactVerticalOffsetMeters =
+		1.0;
+
+	constexpr double DevelopmentGroundSpringStiffnessNewtonsPerMeter =
+		100000.0;
+
+	constexpr double DevelopmentGroundDampingNewtonsSecondPerMeter =
+		5000.0;
+
+	constexpr double DevelopmentRollingResistanceCoefficient =
+		0.02;
+
+	constexpr double DevelopmentMaximumBrakingFrictionCoefficient =
+		0.50;
+
+	constexpr double DevelopmentFrictionTransitionSpeedMetersPerSecond =
+		1.0;
 }
 
 namespace C152::FlightDynamics
@@ -257,15 +285,45 @@ namespace C152::FlightDynamics
 			>= MinimumPropellerDiameterMeters;
 	}
 
+	bool FC152AircraftConfiguration::
+		TryGetDevelopmentPowerplantConfiguration(
+			FPowerplantModelConfiguration&
+			OutPowerplantConfiguration) const
+	{
+		if (!DevelopmentPropulsionEstimate.IsValid()
+			|| !DevelopmentFuelEstimate.IsValid())
+		{
+			return false;
+		}
+
+		FPowerplantModelConfiguration PowerplantConfiguration{};
+
+		PowerplantConfiguration.Propulsion =
+			DevelopmentPropulsionEstimate;
+
+		PowerplantConfiguration.Fuel =
+			DevelopmentFuelEstimate;
+
+		if (!PowerplantConfiguration.IsValid())
+		{
+			return false;
+		}
+
+		OutPowerplantConfiguration =
+			PowerplantConfiguration;
+
+		return true;
+	}
+
 	bool FC152AircraftConfiguration::IsValid() const
 	{
 		return MassAndBalance.IsValid()
 			&& Geometry.IsValid()
-			&& DevelopmentAerodynamicEstimate.IsValid()
-			&& DevelopmentMassPropertiesEstimate.IsValid()
 			&& Propulsion.IsValid()
-			&& DevelopmentPropulsionEstimate.IsValid()
-			&& DevelopmentFuelEstimate.IsValid();
+			&& DevelopmentMassPropertiesEstimate.IsValid()
+			&& DevelopmentAerodynamicEstimate.IsValid()
+			&& DevelopmentFuelEstimate.IsValid()
+			&& DevelopmentGroundReactionEstimate.IsValid();
 	}
 
 	FC152AircraftConfiguration
@@ -481,6 +539,94 @@ namespace C152::FlightDynamics
 			C152AircraftConfigurationConstants::
 			UsGallonsPerHourToKilogramsPerSecond(
 				EstimatedRatedPowerFuelFlowGallonsPerHour);
+
+		// The POH publishes a 58-inch wheelbase and a
+// 7-foot 7.25-inch main-gear track.
+//
+// Contact locations relative to the aircraft CG, spring rates,
+// damping, and friction values are development estimates.
+// They are not manufacturer-published Cessna 152 parameters.
+
+		auto& GroundReaction =
+			Configuration.DevelopmentGroundReactionEstimate;
+
+		GroundReaction.FrictionTransitionSpeedMetersPerSecond =
+			C152AircraftConfigurationConstants::
+			DevelopmentFrictionTransitionSpeedMetersPerSecond;
+
+		const double NoseGearForwardOffsetMeters =
+			C152AircraftConfigurationConstants::
+			C152WheelbaseMeters
+			- C152AircraftConfigurationConstants::
+			DevelopmentMainGearAftOffsetMeters;
+
+		const double MainGearHalfTrackMeters =
+			0.5
+			* C152AircraftConfigurationConstants::
+			C152MainGearTrackMeters;
+
+		const auto ConfigureGroundContact =
+			[](FGroundContactPointConfiguration& Contact,
+				const FVector3& PositionBodyMeters,
+				const double BrakingAuthority)
+			{
+				Contact.PositionBodyMeters =
+					PositionBodyMeters;
+
+				Contact.SpringStiffnessNewtonsPerMeter =
+					C152AircraftConfigurationConstants::
+					DevelopmentGroundSpringStiffnessNewtonsPerMeter;
+
+				Contact.DampingCoefficientNewtonSecondsPerMeter =
+					C152AircraftConfigurationConstants::
+					DevelopmentGroundDampingNewtonsSecondPerMeter;
+
+				Contact.RollingResistanceCoefficient =
+					C152AircraftConfigurationConstants::
+					DevelopmentRollingResistanceCoefficient;
+
+				Contact.MaximumBrakingFrictionCoefficient =
+					C152AircraftConfigurationConstants::
+					DevelopmentMaximumBrakingFrictionCoefficient;
+
+				Contact.BrakingAuthority =
+					BrakingAuthority;
+			};
+
+		// Contact 0: nose wheel.
+		ConfigureGroundContact(
+			GroundReaction.ContactPoints[0],
+			FVector3{
+				NoseGearForwardOffsetMeters,
+				0.0,
+				C152AircraftConfigurationConstants::
+				DevelopmentGroundContactVerticalOffsetMeters
+			},
+			0.0);
+
+		// Contact 1: left main wheel.
+		ConfigureGroundContact(
+			GroundReaction.ContactPoints[1],
+			FVector3{
+				-C152AircraftConfigurationConstants::
+				DevelopmentMainGearAftOffsetMeters,
+				-MainGearHalfTrackMeters,
+				C152AircraftConfigurationConstants::
+				DevelopmentGroundContactVerticalOffsetMeters
+			},
+			1.0);
+
+		// Contact 2: right main wheel.
+		ConfigureGroundContact(
+			GroundReaction.ContactPoints[2],
+			FVector3{
+				-C152AircraftConfigurationConstants::
+				DevelopmentMainGearAftOffsetMeters,
+				MainGearHalfTrackMeters,
+				C152AircraftConfigurationConstants::
+				DevelopmentGroundContactVerticalOffsetMeters
+			},
+			1.0);
 
 		return Configuration;
 	}

@@ -592,4 +592,227 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FC152PowerplantCompositionTest,
+	"C152FlightSim.FlightDynamics."
+	"AircraftConfiguration.PowerplantComposition",
+	EAutomationTestFlags::EditorContext
+	| EAutomationTestFlags::EngineFilter)
+
+	bool FC152PowerplantCompositionTest::RunTest(
+		const FString& Parameters)
+{
+	using namespace C152::FlightDynamics;
+
+	(void)Parameters;
+
+	const FC152AircraftConfiguration Configuration =
+		FC152AircraftConfiguration::Create1979Model152();
+
+	FPowerplantModelConfiguration PowerplantConfiguration{};
+
+	const bool bCompositionSucceeded =
+		Configuration
+		.TryGetDevelopmentPowerplantConfiguration(
+			PowerplantConfiguration);
+
+	TestTrue(
+		TEXT("Powerplant configuration composition succeeds"),
+		bCompositionSucceeded);
+
+	TestTrue(
+		TEXT("Composed powerplant configuration is valid"),
+		PowerplantConfiguration.IsValid());
+
+	TestTrue(
+		TEXT("Composed propulsion data matches aircraft configuration"),
+		IsAircraftConfigurationValueNear(
+			PowerplantConfiguration.Propulsion
+			.RatedPowerWatts,
+			Configuration.DevelopmentPropulsionEstimate
+			.RatedPowerWatts)
+		&& IsAircraftConfigurationValueNear(
+			PowerplantConfiguration.Propulsion
+			.PropellerDiameterMeters,
+			Configuration.DevelopmentPropulsionEstimate
+			.PropellerDiameterMeters));
+
+	TestTrue(
+		TEXT("Composed fuel data matches aircraft configuration"),
+		IsAircraftConfigurationValueNear(
+			PowerplantConfiguration.Fuel
+			.UsableFuelCapacityKilograms,
+			Configuration.DevelopmentFuelEstimate
+			.UsableFuelCapacityKilograms)
+		&& IsAircraftConfigurationValueNear(
+			PowerplantConfiguration.Fuel
+			.FuelFlowAtRatedPowerKilogramsPerSecond,
+			Configuration.DevelopmentFuelEstimate
+			.FuelFlowAtRatedPowerKilogramsPerSecond));
+
+	FPowerplantModel PowerplantModel;
+
+	TestTrue(
+		TEXT("Composed configuration can configure powerplant model"),
+		PowerplantModel.SetConfiguration(
+			PowerplantConfiguration));
+
+	FC152AircraftConfiguration InvalidConfiguration =
+		Configuration;
+
+	InvalidConfiguration.DevelopmentFuelEstimate
+		.UsableFuelCapacityKilograms =
+		0.0;
+
+	FPowerplantModelConfiguration UnchangedOutput{};
+
+	UnchangedOutput.Propulsion.RatedPowerWatts =
+		123.0;
+
+	UnchangedOutput.Fuel.UsableFuelCapacityKilograms =
+		456.0;
+
+	const bool bInvalidCompositionSucceeded =
+		InvalidConfiguration
+		.TryGetDevelopmentPowerplantConfiguration(
+			UnchangedOutput);
+
+	TestFalse(
+		TEXT("Invalid source configuration is rejected"),
+		bInvalidCompositionSucceeded);
+
+	TestTrue(
+		TEXT("Rejected composition leaves output unchanged"),
+		UnchangedOutput.Propulsion.RatedPowerWatts
+		== 123.0
+		&& UnchangedOutput.Fuel
+		.UsableFuelCapacityKilograms
+		== 456.0);
+
+	return true;
+}
+
+namespace C152GroundReactionConfigurationTestSupport
+{
+	bool IsValueNear(
+		const double Actual,
+		const double Expected,
+		const double Tolerance = 1.0e-9)
+	{
+		return std::abs(Actual - Expected)
+			<= Tolerance;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FC152DevelopmentGroundReactionConfigurationTest,
+	"C152FlightSim.FlightDynamics."
+	"AircraftConfiguration.DevelopmentGroundReaction",
+	EAutomationTestFlags::EditorContext |
+	EAutomationTestFlags::EngineFilter)
+
+	bool FC152DevelopmentGroundReactionConfigurationTest::RunTest(
+		const FString& Parameters)
+{
+	using namespace C152::FlightDynamics;
+	using namespace
+		C152GroundReactionConfigurationTestSupport;
+
+	(void)Parameters;
+
+	const FC152AircraftConfiguration Configuration =
+		FC152AircraftConfiguration::Create1979Model152();
+
+	const FGroundReactionModelConfiguration& GroundReaction =
+		Configuration.DevelopmentGroundReactionEstimate;
+
+	TestTrue(
+		TEXT("Development ground-reaction configuration is valid"),
+		GroundReaction.IsValid());
+
+	const FGroundContactPointConfiguration& NoseGear =
+		GroundReaction.ContactPoints[0];
+
+	const FGroundContactPointConfiguration& LeftMainGear =
+		GroundReaction.ContactPoints[1];
+
+	const FGroundContactPointConfiguration& RightMainGear =
+		GroundReaction.ContactPoints[2];
+
+	constexpr double MetersPerInch =
+		0.0254;
+
+	constexpr double ExpectedWheelbaseMeters =
+		58.0 * MetersPerInch;
+
+	constexpr double ExpectedMainGearTrackMeters =
+		(7.0 * 12.0 + 7.25) * MetersPerInch;
+
+	const double MainGearLongitudinalPositionMeters =
+		0.5
+		* (LeftMainGear.PositionBodyMeters.X
+			+ RightMainGear.PositionBodyMeters.X);
+
+	const double ActualWheelbaseMeters =
+		NoseGear.PositionBodyMeters.X
+		- MainGearLongitudinalPositionMeters;
+
+	const double ActualMainGearTrackMeters =
+		RightMainGear.PositionBodyMeters.Y
+		- LeftMainGear.PositionBodyMeters.Y;
+
+	TestTrue(
+		TEXT("Wheelbase matches the 58-inch reference"),
+		IsValueNear(
+			ActualWheelbaseMeters,
+			ExpectedWheelbaseMeters));
+
+	TestTrue(
+		TEXT("Main-gear track matches the 7-foot 7.25-inch reference"),
+		IsValueNear(
+			ActualMainGearTrackMeters,
+			ExpectedMainGearTrackMeters));
+
+	TestTrue(
+		TEXT("Nose gear is forward of the aircraft origin"),
+		NoseGear.PositionBodyMeters.X > 0.0);
+
+	TestTrue(
+		TEXT("Main gears are aft of the aircraft origin"),
+		LeftMainGear.PositionBodyMeters.X < 0.0
+		&& RightMainGear.PositionBodyMeters.X < 0.0);
+
+	TestTrue(
+		TEXT("Main gears are laterally symmetric"),
+		IsValueNear(
+			LeftMainGear.PositionBodyMeters.Y,
+			-RightMainGear.PositionBodyMeters.Y));
+
+	TestTrue(
+		TEXT("All ground contacts use the same vertical offset"),
+		IsValueNear(
+			NoseGear.PositionBodyMeters.Z,
+			LeftMainGear.PositionBodyMeters.Z)
+		&& IsValueNear(
+			LeftMainGear.PositionBodyMeters.Z,
+			RightMainGear.PositionBodyMeters.Z));
+
+	TestTrue(
+		TEXT("Nose wheel has no braking authority"),
+		IsValueNear(
+			NoseGear.BrakingAuthority,
+			0.0));
+
+	TestTrue(
+		TEXT("Both main wheels have full braking authority"),
+		IsValueNear(
+			LeftMainGear.BrakingAuthority,
+			1.0)
+		&& IsValueNear(
+			RightMainGear.BrakingAuthority,
+			1.0));
+
+	return true;
+}
+
 #endif

@@ -4,6 +4,8 @@
 #include "FlightDynamics/PropulsionModel.h"
 #include "FlightDynamics/FuelModel.h"
 #include "FlightDynamics/AircraftMassProperties.h"
+#include "FlightDynamics/PowerplantModel.h"
+#include "FlightDynamics/GroundReactionModel.h"
 
 namespace C152::FlightDynamics
 {
@@ -72,7 +74,8 @@ namespace C152::FlightDynamics
 	{
 		FC152MassAndBalanceLimits MassAndBalance{};
 		FC152GeometryReference Geometry{};
-
+		FGroundReactionModelConfiguration
+			DevelopmentGroundReactionEstimate{};
 		FAerodynamicModelConfiguration DevelopmentAerodynamicEstimate{};
 
 		// Simplified research-model baseline for development.
@@ -85,6 +88,11 @@ namespace C152::FlightDynamics
 			DevelopmentPropulsionEstimate{};
 
 		FFuelModelConfiguration DevelopmentFuelEstimate{};
+
+		[[nodiscard]]
+		bool TryGetDevelopmentPowerplantConfiguration(
+			FPowerplantModelConfiguration&
+			OutPowerplantConfiguration) const;
 
 		[[nodiscard]]
 		bool IsValid() const;
