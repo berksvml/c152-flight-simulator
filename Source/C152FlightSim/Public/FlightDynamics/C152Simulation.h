@@ -74,6 +74,7 @@ namespace C152::FlightDynamics
         FBodyForcesAndMoments PowerplantLoads{};
         FBodyForcesAndMoments GroundReactionLoads{};
         FBodyForcesAndMoments TotalBodyLoads{};
+        FAircraftMassProperties MassPropertiesUsed{};
 
         bool bValid = false;
     };
@@ -165,6 +166,10 @@ namespace C152::FlightDynamics
         const FC152AircraftModelStepOutput&
             GetLastAircraftModelStepOutput() const;
 
+        [[nodiscard]]
+        const FAircraftMassProperties&
+            GetCurrentMassProperties() const;
+
     private:
         [[nodiscard]]
         bool Step(
@@ -197,6 +202,8 @@ namespace C152::FlightDynamics
 
         FC152SimulationConfiguration
             DynamicsConfiguration{};
+
+        FAircraftMassProperties CurrentMassProperties{};
 
         FC152AircraftModelConfiguration
             AircraftModelConfiguration{};

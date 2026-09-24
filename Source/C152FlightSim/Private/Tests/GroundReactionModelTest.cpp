@@ -322,4 +322,213 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FGroundReactionStaticBrakeHoldTest,
+	"C152FlightSim.FlightDynamics."
+	"GroundReaction.StaticBrakeHold",
+	EAutomationTestFlags::EditorContext
+	| EAutomationTestFlags::EngineFilter)
+
+	bool FGroundReactionStaticBrakeHoldTest::RunTest(
+		const FString& Parameters)
+{
+	using namespace C152::FlightDynamics;
+
+	(void)Parameters;
+
+	FGroundReactionModel Model;
+
+	if (!Model.SetConfiguration(
+		GroundReactionModelTestData::
+		MakeValidConfiguration()))
+	{
+		AddError(TEXT(
+			"Failed to configure ground-reaction model."));
+
+		return false;
+	}
+
+	FAircraftState AircraftState{};
+
+	AircraftState.PositionNedMeters =
+	{ 0.0, 0.0, -0.95 };
+
+	FBodyForcesAndMoments AppliedLoadsWithoutGround{};
+
+	AppliedLoadsWithoutGround.ForceBodyNewtons =
+	{ 2000.0, 0.0, 0.0 };
+
+	FBodyForcesAndMoments GroundLoads{};
+	FGroundReactionResult Result{};
+
+	const bool bEvaluationSucceeded =
+		Model.TryEvaluate(
+			AircraftState,
+			0.0,
+			1.0,
+			AppliedLoadsWithoutGround,
+			GroundLoads,
+			Result);
+
+	TestTrue(
+		TEXT("Static-brake evaluation succeeds"),
+		bEvaluationSucceeded);
+
+	TestTrue(
+		TEXT("Aircraft remains on all three contacts"),
+		Result.bOnGround
+		&& Result.ActiveContactCount == 3);
+
+	TestTrue(
+		TEXT("Static brake cancels available forward force"),
+		GroundReactionModelTestData::
+		IsGroundReactionValueNear(
+			GroundLoads.ForceBodyNewtons.X,
+			-2000.0));
+
+	TestTrue(
+		TEXT("Combined longitudinal force is zero"),
+		GroundReactionModelTestData::
+		IsGroundReactionValueNear(
+			AppliedLoadsWithoutGround
+			.ForceBodyNewtons.X
+			+ GroundLoads.ForceBodyNewtons.X,
+			0.0));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FGroundReactionBrakeReleaseTest,
+	"C152FlightSim.FlightDynamics."
+	"GroundReaction.BrakeRelease",
+	EAutomationTestFlags::EditorContext
+	| EAutomationTestFlags::EngineFilter)
+
+	bool FGroundReactionBrakeReleaseTest::RunTest(
+		const FString& Parameters)
+{
+	using namespace C152::FlightDynamics;
+
+	(void)Parameters;
+
+	FGroundReactionModel Model;
+
+	if (!Model.SetConfiguration(
+		GroundReactionModelTestData::
+		MakeValidConfiguration()))
+	{
+		AddError(TEXT(
+			"Failed to configure ground-reaction model."));
+
+		return false;
+	}
+
+	FAircraftState AircraftState{};
+
+	AircraftState.PositionNedMeters =
+	{ 0.0, 0.0, -0.95 };
+
+	FBodyForcesAndMoments AppliedLoadsWithoutGround{};
+
+	AppliedLoadsWithoutGround.ForceBodyNewtons =
+	{ 2000.0, 0.0, 0.0 };
+
+	FBodyForcesAndMoments GroundLoads{};
+	FGroundReactionResult Result{};
+
+	const bool bEvaluationSucceeded =
+		Model.TryEvaluate(
+			AircraftState,
+			0.0,
+			0.0,
+			AppliedLoadsWithoutGround,
+			GroundLoads,
+			Result);
+
+	TestTrue(
+		TEXT("Released-brake evaluation succeeds"),
+		bEvaluationSucceeded);
+
+	TestTrue(
+		TEXT("Released brake does not cancel force at zero speed"),
+		GroundReactionModelTestData::
+		IsGroundReactionValueNear(
+			GroundLoads.ForceBodyNewtons.X,
+			0.0));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FGroundReactionBrakeCapacityExceededTest,
+	"C152FlightSim.FlightDynamics."
+	"GroundReaction.BrakeCapacityExceeded",
+	EAutomationTestFlags::EditorContext
+	| EAutomationTestFlags::EngineFilter)
+
+	bool FGroundReactionBrakeCapacityExceededTest::RunTest(
+		const FString& Parameters)
+{
+	using namespace C152::FlightDynamics;
+
+	(void)Parameters;
+
+	FGroundReactionModel Model;
+
+	if (!Model.SetConfiguration(
+		GroundReactionModelTestData::
+		MakeValidConfiguration()))
+	{
+		AddError(TEXT(
+			"Failed to configure ground-reaction model."));
+
+		return false;
+	}
+
+	FAircraftState AircraftState{};
+
+	AircraftState.PositionNedMeters =
+	{ 0.0, 0.0, -0.95 };
+
+	FBodyForcesAndMoments AppliedLoadsWithoutGround{};
+
+	AppliedLoadsWithoutGround.ForceBodyNewtons =
+	{ 6000.0, 0.0, 0.0 };
+
+	FBodyForcesAndMoments GroundLoads{};
+	FGroundReactionResult Result{};
+
+	const bool bEvaluationSucceeded =
+		Model.TryEvaluate(
+			AircraftState,
+			0.0,
+			1.0,
+			AppliedLoadsWithoutGround,
+			GroundLoads,
+			Result);
+
+	TestTrue(
+		TEXT("Brake-capacity evaluation succeeds"),
+		bEvaluationSucceeded);
+
+	TestTrue(
+		TEXT("Static braking is limited by available capacity"),
+		GroundReactionModelTestData::
+		IsGroundReactionValueNear(
+			GroundLoads.ForceBodyNewtons.X,
+			-5000.0));
+
+	TestTrue(
+		TEXT("Excess applied force remains after braking"),
+		GroundReactionModelTestData::
+		IsGroundReactionValueNear(
+			AppliedLoadsWithoutGround
+			.ForceBodyNewtons.X
+			+ GroundLoads.ForceBodyNewtons.X,
+			1000.0));
+
+	return true;
+}
+
 #endif

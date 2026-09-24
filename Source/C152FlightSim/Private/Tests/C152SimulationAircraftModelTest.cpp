@@ -428,4 +428,130 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FC152SimulationAircraftModelFuelMassCouplingTest,
+    "C152FlightSim.FlightDynamics."
+    "Simulation.AircraftModels.FuelMassCoupling",
+    EAutomationTestFlags::EditorContext |
+    EAutomationTestFlags::EngineFilter)
+
+    bool FC152SimulationAircraftModelFuelMassCouplingTest::RunTest(
+        const FString& Parameters)
+{
+    using namespace C152::FlightDynamics;
+    using namespace
+        C152SimulationAircraftModelTestSupport;
+
+    (void)Parameters;
+
+    FC152Simulation Simulation;
+
+    FAircraftState InitialState{};
+
+    InitialState.VelocityBodyMetersPerSecond =
+        FVector3{
+            30.0,
+            0.0,
+            0.0
+    };
+
+    const bool bConfigurationSucceeded =
+        ConfigureSimulation(
+            Simulation,
+            InitialState,
+            1000.0);
+
+    TestTrue(
+        TEXT("Fuel-mass simulation configuration succeeds"),
+        bConfigurationSucceeded);
+
+    if (!bConfigurationSucceeded)
+    {
+        return false;
+    }
+
+    const double InitialMassKilograms =
+        Simulation.GetCurrentMassProperties()
+        .MassKilograms;
+
+    FControlCommand Command{};
+    Command.Throttle = 1.0;
+
+    const std::uint32_t FirstStepCount =
+        Simulation.Advance(
+            Command,
+            Simulation.GetFixedDeltaSeconds());
+
+    TestEqual(
+        TEXT("First fuel-mass update executes one fixed step"),
+        FirstStepCount,
+        static_cast<std::uint32_t>(1U));
+
+    TestTrue(
+        TEXT("First fuel-mass dynamics step succeeds"),
+        Simulation.WasLastDynamicsStepSuccessful());
+
+    const FC152AircraftModelStepOutput& FirstOutput =
+        Simulation.GetLastAircraftModelStepOutput();
+
+    const double FirstConsumedFuelKilograms =
+        FirstOutput.Powerplant.Fuel
+        .TotalFuelConsumedKilograms;
+
+    TestTrue(
+        TEXT("Powerplant consumes fuel"),
+        FirstConsumedFuelKilograms > 0.0);
+
+    const double ExpectedFirstMassKilograms =
+        InitialMassKilograms
+        - FirstConsumedFuelKilograms;
+
+    TestTrue(
+        TEXT("Current aircraft mass decreases by consumed fuel"),
+        IsValueNear(
+            Simulation.GetCurrentMassProperties()
+            .MassKilograms,
+            ExpectedFirstMassKilograms,
+            1.0e-12));
+
+    TestTrue(
+        TEXT("Step output records the mass used by 6DOF"),
+        IsValueNear(
+            FirstOutput.MassPropertiesUsed.MassKilograms,
+            ExpectedFirstMassKilograms,
+            1.0e-12));
+
+    const double MassAfterFirstStepKilograms =
+        Simulation.GetCurrentMassProperties()
+        .MassKilograms;
+
+    const std::uint32_t SecondStepCount =
+        Simulation.Advance(
+            Command,
+            Simulation.GetFixedDeltaSeconds());
+
+    TestEqual(
+        TEXT("Second fuel-mass update executes one fixed step"),
+        SecondStepCount,
+        static_cast<std::uint32_t>(1U));
+
+    TestTrue(
+        TEXT("Mass continues decreasing while producing power"),
+        Simulation.GetCurrentMassProperties()
+        .MassKilograms
+        < MassAfterFirstStepKilograms);
+
+    Simulation.Reset(InitialState);
+
+    TestTrue(
+        TEXT("Reset restores initial reference mass"),
+        IsValueNear(
+            Simulation.GetCurrentMassProperties()
+            .MassKilograms,
+            InitialMassKilograms,
+            1.0e-12));
+
+    return true;
+}
+
 #endif

@@ -1,7 +1,9 @@
 #include "FlightDynamics/GroundReactionModel.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
 
 namespace GroundReactionModelConstants
 {
@@ -40,10 +42,9 @@ namespace C152::FlightDynamics
 		}
 
 		return SpringStiffnessNewtonsPerMeter
-				> GroundReactionModelConstants::
+			> GroundReactionModelConstants::
 			MinimumPositiveValue
-			&& DampingCoefficientNewtonSecondsPerMeter
-			>= 0.0
+			&& DampingCoefficientNewtonSecondsPerMeter >= 0.0
 			&& RollingResistanceCoefficient >= 0.0
 			&& MaximumBrakingFrictionCoefficient >= 0.0
 			&& BrakingAuthority >= 0.0
@@ -106,6 +107,24 @@ namespace C152::FlightDynamics
 		FBodyForcesAndMoments& OutLoads,
 		FGroundReactionResult& OutResult) const
 	{
+		return TryEvaluate(
+			AircraftState,
+			GroundPlaneDownMeters,
+			BrakeCommand,
+			FBodyForcesAndMoments{},
+			OutLoads,
+			OutResult);
+	}
+
+	bool FGroundReactionModel::TryEvaluate(
+		const FAircraftState& AircraftState,
+		const double GroundPlaneDownMeters,
+		const double BrakeCommand,
+		const FBodyForcesAndMoments&
+		AppliedLoadsWithoutGround,
+		FBodyForcesAndMoments& OutLoads,
+		FGroundReactionResult& OutResult) const
+	{
 		const bool bInputsAreFinite =
 			AircraftState.PositionNedMeters.IsFinite()
 			&& AircraftState
@@ -116,7 +135,11 @@ namespace C152::FlightDynamics
 			IsQuaternionFinite(
 				AircraftState.AttitudeBodyToNed)
 			&& std::isfinite(GroundPlaneDownMeters)
-			&& std::isfinite(BrakeCommand);
+			&& std::isfinite(BrakeCommand)
+			&& AppliedLoadsWithoutGround
+			.ForceBodyNewtons.IsFinite()
+			&& AppliedLoadsWithoutGround
+			.MomentBodyNewtonMeters.IsFinite();
 
 		if (!bIsConfigured
 			|| !bInputsAreFinite
@@ -129,12 +152,37 @@ namespace C152::FlightDynamics
 			return false;
 		}
 
-		FBodyForcesAndMoments Loads{};
+		constexpr std::size_t ContactPointCount = 3U;
+
+		std::array<bool, ContactPointCount>
+			bActiveContacts{};
+
+		std::array<FVector3, ContactPointCount>
+			ContactVelocitiesNed{};
+
+		std::array<double, ContactPointCount>
+			NormalForcesNewtons{};
+
+		std::array<double, ContactPointCount>
+			BrakingCapacitiesNewtons{};
+
 		FGroundReactionResult Result{};
 
-		for (const FGroundContactPointConfiguration&
-			ContactPoint : Configuration.ContactPoints)
+		double TotalBrakingCapacityNewtons = 0.0;
+		double MaximumContactHorizontalSpeed = 0.0;
+
+		// First pass: determine active contacts, normal forces
+		// and available braking capacity.
+		for (
+			std::size_t ContactIndex = 0U;
+			ContactIndex
+			< Configuration.ContactPoints.size();
+			++ContactIndex)
 		{
+			const FGroundContactPointConfiguration&
+				ContactPoint =
+				Configuration.ContactPoints[ContactIndex];
+
 			const FVector3 ContactPositionNedMeters =
 				AircraftState.PositionNedMeters
 				+ AircraftState.AttitudeBodyToNed
@@ -162,7 +210,8 @@ namespace C152::FlightDynamics
 				AircraftState.AttitudeBodyToNed
 				.RotateVector(ContactVelocityBody);
 
-			// Positive NED Z velocity means motion into the runway.
+			// Positive NED Z velocity means motion
+			// into the runway.
 			const double NormalForceNewtons =
 				std::max(
 					0.0,
@@ -187,6 +236,94 @@ namespace C152::FlightDynamics
 					+ ContactVelocityNed.Y
 					* ContactVelocityNed.Y);
 
+			const double BrakingCapacityNewtons =
+				NormalForceNewtons
+				* BrakeCommand
+				* ContactPoint.BrakingAuthority
+				* ContactPoint
+				.MaximumBrakingFrictionCoefficient;
+
+			bActiveContacts[ContactIndex] = true;
+
+			ContactVelocitiesNed[ContactIndex] =
+				ContactVelocityNed;
+
+			NormalForcesNewtons[ContactIndex] =
+				NormalForceNewtons;
+
+			BrakingCapacitiesNewtons[ContactIndex] =
+				BrakingCapacityNewtons;
+
+			Result.TotalNormalForceNewtons +=
+				NormalForceNewtons;
+
+			++Result.ActiveContactCount;
+
+			TotalBrakingCapacityNewtons +=
+				BrakingCapacityNewtons;
+
+			MaximumContactHorizontalSpeed =
+				std::max(
+					MaximumContactHorizontalSpeed,
+					HorizontalSpeedMetersPerSecond);
+		}
+
+		Result.bOnGround =
+			Result.ActiveContactCount > 0;
+
+		const bool bUseStaticBraking =
+			Result.bOnGround
+			&& BrakeCommand
+			> GroundReactionModelConstants::
+			MinimumPositiveValue
+			&& TotalBrakingCapacityNewtons
+			> GroundReactionModelConstants::
+			MinimumPositiveValue
+			&& MaximumContactHorizontalSpeed
+			< Configuration
+			.FrictionTransitionSpeedMetersPerSecond;
+
+		const FVector3 AppliedForceNed =
+			AircraftState.AttitudeBodyToNed
+			.RotateVector(
+				AppliedLoadsWithoutGround
+				.ForceBodyNewtons);
+
+		FBodyForcesAndMoments Loads{};
+
+		// Second pass: calculate normal, rolling-resistance
+		// and brake forces for every active contact.
+		for (
+			std::size_t ContactIndex = 0U;
+			ContactIndex
+			< Configuration.ContactPoints.size();
+			++ContactIndex)
+		{
+			if (!bActiveContacts[ContactIndex])
+			{
+				continue;
+			}
+
+			const FGroundContactPointConfiguration&
+				ContactPoint =
+				Configuration.ContactPoints[ContactIndex];
+
+			const FVector3& ContactVelocityNed =
+				ContactVelocitiesNed[ContactIndex];
+
+			const double NormalForceNewtons =
+				NormalForcesNewtons[ContactIndex];
+
+			const double BrakingCapacityNewtons =
+				BrakingCapacitiesNewtons[ContactIndex];
+
+			const double HorizontalSpeedMetersPerSecond =
+				std::sqrt(
+					ContactVelocityNed.X
+					* ContactVelocityNed.X
+					+ ContactVelocityNed.Y
+					* ContactVelocityNed.Y);
+
 			FVector3 ContactForceNed{
 				0.0,
 				0.0,
@@ -194,17 +331,9 @@ namespace C152::FlightDynamics
 			};
 
 			if (HorizontalSpeedMetersPerSecond
-				> GroundReactionModelConstants::
+			> GroundReactionModelConstants::
 				MinimumPositiveValue)
 			{
-				const double FrictionCoefficient =
-					ContactPoint
-					.RollingResistanceCoefficient
-					+ BrakeCommand
-					* ContactPoint.BrakingAuthority
-					* ContactPoint
-					.MaximumBrakingFrictionCoefficient;
-
 				const double FrictionTransitionFactor =
 					std::min(
 						1.0,
@@ -212,18 +341,100 @@ namespace C152::FlightDynamics
 						/ Configuration
 						.FrictionTransitionSpeedMetersPerSecond);
 
-				const double FrictionForceNewtons =
+				const double RollingResistanceForceNewtons =
 					NormalForceNewtons
-					* FrictionCoefficient
+					* ContactPoint
+					.RollingResistanceCoefficient
 					* FrictionTransitionFactor;
 
-				ContactForceNed.X =
-					-FrictionForceNewtons
+				ContactForceNed.X -=
+					RollingResistanceForceNewtons
 					* ContactVelocityNed.X
 					/ HorizontalSpeedMetersPerSecond;
 
-				ContactForceNed.Y =
-					-FrictionForceNewtons
+				ContactForceNed.Y -=
+					RollingResistanceForceNewtons
+					* ContactVelocityNed.Y
+					/ HorizontalSpeedMetersPerSecond;
+			}
+
+			if (bUseStaticBraking
+				&& BrakingCapacityNewtons
+			> GroundReactionModelConstants::
+				MinimumPositiveValue)
+			{
+				const double CapacityFraction =
+					BrakingCapacityNewtons
+					/ TotalBrakingCapacityNewtons;
+
+				// Cancel the corresponding share of external
+				// horizontal force and damp residual wheel motion.
+				double DesiredBrakeForceX =
+					-AppliedForceNed.X
+					* CapacityFraction
+					- BrakingCapacityNewtons
+					* ContactVelocityNed.X
+					/ Configuration
+					.FrictionTransitionSpeedMetersPerSecond;
+
+				double DesiredBrakeForceY =
+					-AppliedForceNed.Y
+					* CapacityFraction
+					- BrakingCapacityNewtons
+					* ContactVelocityNed.Y
+					/ Configuration
+					.FrictionTransitionSpeedMetersPerSecond;
+
+				const double DesiredBrakeForceMagnitude =
+					std::sqrt(
+						DesiredBrakeForceX
+						* DesiredBrakeForceX
+						+ DesiredBrakeForceY
+						* DesiredBrakeForceY);
+
+				if (DesiredBrakeForceMagnitude
+					> BrakingCapacityNewtons)
+				{
+					const double Scale =
+						BrakingCapacityNewtons
+						/ DesiredBrakeForceMagnitude;
+
+					DesiredBrakeForceX *= Scale;
+					DesiredBrakeForceY *= Scale;
+				}
+
+				ContactForceNed.X +=
+					DesiredBrakeForceX;
+
+				ContactForceNed.Y +=
+					DesiredBrakeForceY;
+			}
+			else if (
+				HorizontalSpeedMetersPerSecond
+				> GroundReactionModelConstants::
+				MinimumPositiveValue
+				&& BrakingCapacityNewtons
+				> GroundReactionModelConstants::
+				MinimumPositiveValue)
+			{
+				const double FrictionTransitionFactor =
+					std::min(
+						1.0,
+						HorizontalSpeedMetersPerSecond
+						/ Configuration
+						.FrictionTransitionSpeedMetersPerSecond);
+
+				const double BrakingForceNewtons =
+					BrakingCapacityNewtons
+					* FrictionTransitionFactor;
+
+				ContactForceNed.X -=
+					BrakingForceNewtons
+					* ContactVelocityNed.X
+					/ HorizontalSpeedMetersPerSecond;
+
+				ContactForceNed.Y -=
+					BrakingForceNewtons
 					* ContactVelocityNed.Y
 					/ HorizontalSpeedMetersPerSecond;
 			}
@@ -240,15 +451,7 @@ namespace C152::FlightDynamics
 				Cross(
 					ContactPoint.PositionBodyMeters,
 					ContactForceBody);
-
-			Result.TotalNormalForceNewtons +=
-				NormalForceNewtons;
-
-			++Result.ActiveContactCount;
 		}
-
-		Result.bOnGround =
-			Result.ActiveContactCount > 0;
 
 		if (!Loads.ForceBodyNewtons.IsFinite()
 			|| !Loads.MomentBodyNewtonMeters.IsFinite()

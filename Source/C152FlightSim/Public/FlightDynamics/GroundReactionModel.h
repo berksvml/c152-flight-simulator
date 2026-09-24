@@ -57,16 +57,23 @@ namespace C152::FlightDynamics
 		[[nodiscard]]
 		bool IsConfigured() const;
 
-		// GroundPlaneDownMeters is the NED Down coordinate
-		// of a flat horizontal runway.
-		//
-		// BrakeCommand must be in [0, 1].
-		// On failure, neither output is modified.
+		// Convenience overload when no non-ground loads are available.
 		[[nodiscard]]
 		bool TryEvaluate(
 			const FAircraftState& AircraftState,
 			double GroundPlaneDownMeters,
 			double BrakeCommand,
+			FBodyForcesAndMoments& OutLoads,
+			FGroundReactionResult& OutResult) const;
+
+		// This overload uses aerodynamic, propulsion and other
+		// non-ground loads to calculate low-speed static braking.
+		[[nodiscard]]
+		bool TryEvaluate(
+			const FAircraftState& AircraftState,
+			double GroundPlaneDownMeters,
+			double BrakeCommand,
+			const FBodyForcesAndMoments& AppliedLoadsWithoutGround,
 			FBodyForcesAndMoments& OutLoads,
 			FGroundReactionResult& OutResult) const;
 

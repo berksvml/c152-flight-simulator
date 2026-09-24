@@ -29,6 +29,17 @@ namespace C152::FlightDynamics
             WindModel.Reset();
         }
 
+        if (bDynamicsConfigured)
+        {
+            CurrentMassProperties =
+                DynamicsConfiguration.MassProperties;
+        }
+        else
+        {
+            CurrentMassProperties =
+                FAircraftMassProperties{};
+        }
+
         BrakeCommand = 0.0;
 
         LastAircraftModelStepOutput =
@@ -170,7 +181,6 @@ namespace C152::FlightDynamics
             OutAtmosphere,
             OutAirData);
     }
-
     bool FC152Simulation::SetDynamicsConfiguration(
         const FC152SimulationConfiguration& Configuration)
     {
@@ -182,7 +192,21 @@ namespace C152::FlightDynamics
             return false;
         }
 
+        // The reference dynamics mass includes initial usable fuel.
+        // Enough non-fuel mass must remain after complete fuel depletion.
+        if (bAircraftModelConfigured
+            && Configuration.MassProperties.MassKilograms
+            <= AircraftModelConfiguration
+            .InitialUsableFuelKilograms)
+        {
+            return false;
+        }
+
         DynamicsConfiguration = Configuration;
+
+        CurrentMassProperties =
+            Configuration.MassProperties;
+
         bDynamicsConfigured = true;
         bLastDynamicsStepSuccessful = true;
 
@@ -193,6 +217,9 @@ namespace C152::FlightDynamics
     {
         DynamicsConfiguration =
             FC152SimulationConfiguration{};
+
+        CurrentMassProperties =
+            FAircraftMassProperties{};
 
         AppliedBodyLoads =
             FBodyForcesAndMoments{};
@@ -223,6 +250,17 @@ namespace C152::FlightDynamics
             || Configuration.InitialUsableFuelKilograms < 0.0
             || !std::isfinite(
                 Configuration.GroundPlaneDownMeters))
+        {
+            return false;
+        }
+
+        // Dynamics mass represents the total aircraft mass
+        // at the beginning of the simulation and therefore
+        // includes the selected initial usable fuel.
+        if (bDynamicsConfigured
+            && DynamicsConfiguration
+            .MassProperties.MassKilograms
+            <= Configuration.InitialUsableFuelKilograms)
         {
             return false;
         }
@@ -258,11 +296,28 @@ namespace C152::FlightDynamics
             return false;
         }
 
-        AircraftModelConfiguration = Configuration;
+        AircraftModelConfiguration =
+            Configuration;
 
-        AerodynamicModel = CandidateAerodynamicModel;
-        PowerplantModel = CandidatePowerplantModel;
-        GroundReactionModel = CandidateGroundReactionModel;
+        AerodynamicModel =
+            CandidateAerodynamicModel;
+
+        PowerplantModel =
+            CandidatePowerplantModel;
+
+        GroundReactionModel =
+            CandidateGroundReactionModel;
+
+        if (bDynamicsConfigured)
+        {
+            CurrentMassProperties =
+                DynamicsConfiguration.MassProperties;
+        }
+        else
+        {
+            CurrentMassProperties =
+                FAircraftMassProperties{};
+        }
 
         LastAircraftModelStepOutput =
             FC152AircraftModelStepOutput{};
@@ -284,6 +339,17 @@ namespace C152::FlightDynamics
 
         LastAircraftModelStepOutput =
             FC152AircraftModelStepOutput{};
+
+        if (bDynamicsConfigured)
+        {
+            CurrentMassProperties =
+                DynamicsConfiguration.MassProperties;
+        }
+        else
+        {
+            CurrentMassProperties =
+                FAircraftMassProperties{};
+        }
 
         BrakeCommand = 0.0;
 
@@ -377,6 +443,12 @@ namespace C152::FlightDynamics
         return AircraftState;
     }
 
+    const FAircraftMassProperties&
+        FC152Simulation::GetCurrentMassProperties() const
+    {
+        return CurrentMassProperties;
+    }
+
     const FControlSurfaceState&
         FC152Simulation::GetControlSurfaceState() const
     {
@@ -449,6 +521,9 @@ namespace C152::FlightDynamics
         FBodyForcesAndMoments TotalBodyLoads =
             AppliedBodyLoads;
 
+        FAircraftMassProperties CandidateMassProperties =
+            DynamicsConfiguration.MassProperties;
+
         FC152AircraftModelStepOutput
             CandidateStepOutput{};
 
@@ -517,14 +592,27 @@ namespace C152::FlightDynamics
                 return false;
             }
 
-            if (!GroundReactionModel.TryEvaluate(
-                AircraftState,
-                AircraftModelConfiguration
-                .GroundPlaneDownMeters,
-                BrakeCommand,
-                CandidateStepOutput
-                .GroundReactionLoads,
-                CandidateStepOutput.GroundReaction))
+            const double ConsumedFuelKilograms =
+                CandidateStepOutput.Powerplant.Fuel
+                .TotalFuelConsumedKilograms;
+
+            if (!std::isfinite(ConsumedFuelKilograms)
+                || ConsumedFuelKilograms < 0.0)
+            {
+                return false;
+            }
+
+            // The reference mass includes the initial usable fuel.
+            // Only consumed fuel is removed from the current mass.
+            //
+            // Fuel-distribution effects on CG and inertia are intentionally
+            // deferred until tank geometry is modelled.
+            CandidateMassProperties.MassKilograms =
+                DynamicsConfiguration
+                .MassProperties.MassKilograms
+                - ConsumedFuelKilograms;
+
+            if (!CandidateMassProperties.IsValid())
             {
                 return false;
             }
@@ -537,6 +625,19 @@ namespace C152::FlightDynamics
                 TotalBodyLoads,
                 CandidateStepOutput.PowerplantLoads);
 
+            if (!GroundReactionModel.TryEvaluate(
+                AircraftState,
+                AircraftModelConfiguration
+                .GroundPlaneDownMeters,
+                BrakeCommand,
+                TotalBodyLoads,
+                CandidateStepOutput
+                .GroundReactionLoads,
+                CandidateStepOutput.GroundReaction))
+            {
+                return false;
+            }
+
             AddBodyLoads(
                 TotalBodyLoads,
                 CandidateStepOutput.GroundReactionLoads);
@@ -548,10 +649,16 @@ namespace C152::FlightDynamics
         FAircraftState CandidateAircraftState =
             AircraftState;
 
+        if (bAircraftModelConfigured)
+        {
+            CandidateStepOutput.MassPropertiesUsed =
+                CandidateMassProperties;
+        }
+
         if (!RigidBodyModel.Propagate(
             CandidateAircraftState,
             TotalBodyLoads,
-            DynamicsConfiguration.MassProperties,
+            CandidateMassProperties,
             DynamicsConfiguration
             .GravityAccelerationNedMetersPerSecondSquared,
             FixedDeltaSeconds))
@@ -560,6 +667,8 @@ namespace C152::FlightDynamics
         }
 
         AircraftState = CandidateAircraftState;
+        CurrentMassProperties =
+            CandidateMassProperties;
         WindModel = CandidateWindModel;
         ControlSurfaceModel =
             CandidateControlSurfaceModel;
