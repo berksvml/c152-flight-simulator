@@ -29,6 +29,9 @@ struct C152FLIGHTSIM_API FAircraftControlInput
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Aircraft|Input")
 	float ThrottleCommand = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Aircraft|Input")
+	float BrakeCommand = 0.0f;
 };
 
 UCLASS()
@@ -60,11 +63,15 @@ private:
 	void ResetYawInput(const FInputActionValue& Value);
 	void ResetThrottleRateInput(const FInputActionValue& Value);
 
+	void HandleBrakeInput(const FInputActionValue& Value);
+	void ResetBrakeInput(const FInputActionValue& Value);
+
 	void InitializeSimulationFromActorTransform();
 	void ApplyAircraftStateToActorTransform();
 
 	[[nodiscard]]
-	bool ConfigurePhaseOneDynamicsTest();
+	bool ConfigureIntegratedAircraftSimulation(
+		C152::FlightDynamics::FAircraftState InitialAircraftState);
 
 	UPROPERTY(
 		VisibleAnywhere,
@@ -130,6 +137,13 @@ private:
 	TObjectPtr<UInputAction> ThrottleRateAction;
 
 	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Aircraft|Input",
+		meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> BrakeAction;
+
+	UPROPERTY(
 		VisibleAnywhere,
 		BlueprintReadOnly,
 		Category = "Aircraft|Input",
@@ -145,18 +159,52 @@ private:
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
-		Category = "Aircraft|Debug|Phase 1 Dynamics",
+		Category = "Aircraft|Simulation",
 		meta = (AllowPrivateAccess = "true"))
-	bool bEnablePhaseOneDynamicsTest = true;
+	bool bEnableIntegratedAircraftSimulation = true;
 
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
-		Category = "Aircraft|Debug|Phase 1 Dynamics",
+		Category = "Aircraft|Simulation",
+		meta = (AllowPrivateAccess = "true"))
+	bool bStartOnRunway = true;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Aircraft|Simulation",
 		meta = (
 			AllowPrivateAccess = "true",
 			ClampMin = "0.0"))
-	float PhaseOneInitialForwardSpeedMetersPerSecond = 10.0f;
+	double InitialForwardSpeedMetersPerSecond = 0.0;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Aircraft|Simulation",
+		meta = (
+			AllowPrivateAccess = "true",
+			ClampMin = "0.0",
+			ClampMax = "1.0"))
+	double InitialUsableFuelFraction = 1.0;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Aircraft|Ground",
+		meta = (AllowPrivateAccess = "true"))
+	double RunwayWorldZCentimeters = 0.0;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Aircraft|Ground",
+		meta = (
+			AllowPrivateAccess = "true",
+			ClampMin = "0.0",
+			ClampMax = "0.10"))
+	double InitialLandingGearCompressionMeters = 0.02;
 
 	UPROPERTY(
 		EditDefaultsOnly,

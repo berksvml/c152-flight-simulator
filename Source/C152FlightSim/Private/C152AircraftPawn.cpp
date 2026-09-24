@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "FlightDynamics/C152AircraftConfiguration.h"
 #include "InputActionValue.h"
 
 AC152AircraftPawn::AC152AircraftPawn()
@@ -79,6 +80,19 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 	Command.Throttle =
 		static_cast<double>(ControlInput.ThrottleCommand);
 
+	const bool bBrakeCommandAccepted =
+		Simulation.SetBrakeCommand(
+			static_cast<double>(
+				ControlInput.BrakeCommand));
+
+	if (!bBrakeCommandAccepted)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("Invalid C152 brake command."));
+	}
+
 	const std::uint32_t SimulationStepCount =
 		Simulation.Advance(
 			Command,
@@ -93,7 +107,7 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 		UE_LOG(
 			LogTemp,
 			Error,
-			TEXT("C152 rigid-body propagation failed."));
+			TEXT("C152 integrated simulation step failed."));
 
 		bDynamicsFailureReported = true;
 	}
@@ -204,6 +218,54 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 			DebugText += TEXT(
 				"\nAir data unavailable: check origin altitude "
 				"and aircraft position.");
+		}
+
+		const C152::FlightDynamics::FAircraftMassProperties&
+			CurrentMassProperties =
+			Simulation.GetCurrentMassProperties();
+
+		DebugText += FString::Printf(
+			TEXT(
+				"\nAircraft mass: %.3f kg | Brake: %.2f"),
+			CurrentMassProperties.MassKilograms,
+			Simulation.GetBrakeCommand());
+
+		const C152::FlightDynamics::FC152AircraftModelStepOutput&
+			ModelOutput =
+			Simulation.GetLastAircraftModelStepOutput();
+
+		if (ModelOutput.bValid)
+		{
+			const TCHAR* GroundStatus =
+				ModelOutput.GroundReaction.bOnGround
+				? TEXT("ON GROUND")
+				: TEXT("AIRBORNE");
+
+			DebugText += FString::Printf(
+				TEXT(
+					"\nFuel: %.3f kg | Flow: %.6f kg/s | "
+					"Power: %s"
+					"\nGround: %s | Contacts: %d | Normal: %.1f N"
+					"\nLoads X  Aero: %.1f N | Engine: %.1f N"
+					"\nLoads Z  Aero: %.1f N | Ground: %.1f N"),
+				ModelOutput.Powerplant.Fuel
+				.RemainingUsableFuelKilograms,
+				ModelOutput.Powerplant.Fuel
+				.FuelFlowKilogramsPerSecond,
+				ModelOutput.Powerplant.bProducingPower
+				? TEXT("ON")
+				: TEXT("OFF"),
+				GroundStatus,
+				ModelOutput.GroundReaction.ActiveContactCount,
+				ModelOutput.GroundReaction.TotalNormalForceNewtons,
+				ModelOutput.AerodynamicLoads
+				.ForceBodyNewtons.X,
+				ModelOutput.PowerplantLoads
+				.ForceBodyNewtons.X,
+				ModelOutput.AerodynamicLoads
+				.ForceBodyNewtons.Z,
+				ModelOutput.GroundReactionLoads
+				.ForceBodyNewtons.Z);
 		}
 
 		GEngine->AddOnScreenDebugMessage(
@@ -344,6 +406,27 @@ void AC152AircraftPawn::SetupPlayerInputComponent(
 			this,
 			&AC152AircraftPawn::ResetThrottleRateInput);
 	}
+
+	if (BrakeAction)
+	{
+		EnhancedInputComponent->BindAction(
+			BrakeAction,
+			ETriggerEvent::Triggered,
+			this,
+			&AC152AircraftPawn::HandleBrakeInput);
+
+		EnhancedInputComponent->BindAction(
+			BrakeAction,
+			ETriggerEvent::Completed,
+			this,
+			&AC152AircraftPawn::ResetBrakeInput);
+
+		EnhancedInputComponent->BindAction(
+			BrakeAction,
+			ETriggerEvent::Canceled,
+			this,
+			&AC152AircraftPawn::ResetBrakeInput);
+	}
 }
 
 void AC152AircraftPawn::HandlePitchInput(
@@ -398,79 +481,91 @@ void AC152AircraftPawn::ResetThrottleRateInput(
 	ThrottleRateCommand = 0.0f;
 }
 
+void AC152AircraftPawn::HandleBrakeInput(
+	const FInputActionValue& Value)
+{
+	ControlInput.BrakeCommand =
+		FMath::Clamp(
+			Value.Get<float>(),
+			0.0f,
+			1.0f);
+}
+
+void AC152AircraftPawn::ResetBrakeInput(
+	const FInputActionValue& Value)
+{
+	ControlInput.BrakeCommand = 0.0f;
+}
+
 void AC152AircraftPawn::
 InitializeSimulationFromActorTransform()
 {
 	using namespace C152::FlightDynamics;
 
+	FTransform InitialTransform =
+		GetActorTransform();
+
+	if (bStartOnRunway)
+	{
+		FRotator LevelRotation =
+			InitialTransform.Rotator();
+
+		LevelRotation.Pitch = 0.0;
+		LevelRotation.Roll = 0.0;
+
+		InitialTransform.SetRotation(
+			LevelRotation.Quaternion());
+	}
+
 	FAircraftState InitialAircraftState{};
 
 	C152::UnrealIntegration::FUnrealAircraftStateAdapter::
 		UpdateCorePoseFromUnrealTransform(
-			GetActorTransform(),
+			InitialTransform,
 			InitialAircraftState);
 
-	if (bEnablePhaseOneDynamicsTest)
+	Simulation.ClearAircraftModelConfiguration();
+	Simulation.ClearDynamicsConfiguration();
+	Simulation.ClearEnvironmentConfiguration();
+
+	bool bConfigurationSucceeded = true;
+
+	if (bEnableIntegratedAircraftSimulation)
+	{
+		bConfigurationSucceeded =
+			ConfigureIntegratedAircraftSimulation(
+				InitialAircraftState);
+	}
+	else
 	{
 		InitialAircraftState
 			.VelocityBodyMetersPerSecond.X =
-			static_cast<double>(
-				FMath::Max(
-					PhaseOneInitialForwardSpeedMetersPerSecond,
-					0.0f));
+			FMath::Max(
+				InitialForwardSpeedMetersPerSecond,
+				0.0);
+
+		Simulation.Reset(InitialAircraftState);
 	}
 
-	Simulation.ClearDynamicsConfiguration();
-	Simulation.ClearEnvironmentConfiguration();
-	Simulation.Reset(InitialAircraftState);
-
-	FEnvironmentConfiguration Environment{};
-	Environment.OriginGeopotentialAltitudeMeters =
-		WorldOriginGeopotentialAltitudeMeters;
-
-	Environment.WindVelocityNedMetersPerSecond = FVector3{
-		WindVelocityNedMetersPerSecond.X,
-		WindVelocityNedMetersPerSecond.Y,
-		WindVelocityNedMetersPerSecond.Z
-	};
-
-	Environment
-		.TurbulenceStandardDeviationNedMetersPerSecond =
-		FVector3{
-			TurbulenceStandardDeviationNedMetersPerSecond.X,
-			TurbulenceStandardDeviationNedMetersPerSecond.Y,
-			TurbulenceStandardDeviationNedMetersPerSecond.Z
-	};
-
-	Environment.TurbulenceCorrelationTimeSeconds =
-		TurbulenceCorrelationTimeSeconds;
-
-	Environment.TurbulenceRandomSeed =
-		static_cast<std::uint32_t>(
-			FMath::Max(TurbulenceRandomSeed, 0));
-
-	if (!Simulation.SetEnvironmentConfiguration(Environment))
+	if (!bConfigurationSucceeded)
 	{
 		UE_LOG(
 			LogTemp,
 			Error,
-			TEXT("Failed to configure the aircraft environment."));
+			TEXT(
+				"Failed to configure the integrated "
+				"C152 aircraft simulation."));
 	}
-
-	if (bEnablePhaseOneDynamicsTest)
+	else
 	{
-		const bool bConfigurationSucceeded =
-			ConfigurePhaseOneDynamicsTest();
+		ApplyAircraftStateToActorTransform();
 
-		if (!bConfigurationSucceeded)
-		{
-			UE_LOG(
-				LogTemp,
-				Error,
-				TEXT(
-					"Failed to configure the Phase 1 "
-					"dynamics test."));
-		}
+		UE_LOG(
+			LogTemp,
+			Log,
+			TEXT(
+				"Integrated C152 aircraft simulation "
+				"configured successfully."));
 	}
 
 	bDynamicsFailureReported = false;
@@ -490,39 +585,179 @@ void AC152AircraftPawn::ApplyAircraftStateToActorTransform()
 		nullptr,
 		ETeleportType::TeleportPhysics);
 }
-
 bool AC152AircraftPawn::
-ConfigurePhaseOneDynamicsTest()
+ConfigureIntegratedAircraftSimulation(
+	C152::FlightDynamics::FAircraftState
+	InitialAircraftState)
 {
 	using namespace C152::FlightDynamics;
 
-	FC152SimulationConfiguration Configuration;
+	const FC152AircraftConfiguration
+		AircraftConfiguration =
+		FC152AircraftConfiguration::
+		Create1979Model152();
 
-	// Synthetic values used only for the Phase 1 runtime test.
-	// Validated C152 data will be introduced separately.
-	Configuration.MassProperties.MassKilograms = 1.0;
+	if (!AircraftConfiguration.IsValid())
+	{
+		return false;
+	}
 
-	Configuration.MassProperties
-		.InertiaXxKilogramMetersSquared = 1.0;
+	FPowerplantModelConfiguration
+		PowerplantConfiguration{};
 
-	Configuration.MassProperties
-		.InertiaYyKilogramMetersSquared = 1.0;
+	if (!AircraftConfiguration
+		.TryGetDevelopmentPowerplantConfiguration(
+			PowerplantConfiguration))
+	{
+		return false;
+	}
 
-	Configuration.MassProperties
-		.InertiaZzKilogramMetersSquared = 1.0;
+	FC152SimulationConfiguration
+		DynamicsConfiguration{};
 
-	Configuration.MassProperties
-		.ProductOfInertiaXzKilogramMetersSquared = 0.0;
+	DynamicsConfiguration.MassProperties =
+		AircraftConfiguration
+		.DevelopmentMassPropertiesEstimate;
 
-	// Gravity remains disabled until lift and ground-contact
-	// models are available.
-	Configuration
-		.GravityAccelerationNedMetersPerSecondSquared = {
+	DynamicsConfiguration
+		.GravityAccelerationNedMetersPerSecondSquared =
+		FVector3{
 			0.0,
 			0.0,
-			0.0
+			9.80665
 	};
 
-	return Simulation.SetDynamicsConfiguration(
-		Configuration);
+	FEnvironmentConfiguration
+		EnvironmentConfiguration{};
+
+	EnvironmentConfiguration
+		.OriginGeopotentialAltitudeMeters =
+		WorldOriginGeopotentialAltitudeMeters;
+
+	EnvironmentConfiguration
+		.WindVelocityNedMetersPerSecond =
+		FVector3{
+			WindVelocityNedMetersPerSecond.X,
+			WindVelocityNedMetersPerSecond.Y,
+			WindVelocityNedMetersPerSecond.Z
+	};
+
+	EnvironmentConfiguration
+		.TurbulenceStandardDeviationNedMetersPerSecond =
+		FVector3{
+			TurbulenceStandardDeviationNedMetersPerSecond.X,
+			TurbulenceStandardDeviationNedMetersPerSecond.Y,
+			TurbulenceStandardDeviationNedMetersPerSecond.Z
+	};
+
+	EnvironmentConfiguration
+		.TurbulenceCorrelationTimeSeconds =
+		TurbulenceCorrelationTimeSeconds;
+
+	EnvironmentConfiguration.TurbulenceRandomSeed =
+		static_cast<std::uint32_t>(
+			FMath::Max(
+				TurbulenceRandomSeed,
+				0));
+
+	FC152AircraftModelConfiguration
+		AircraftModelConfiguration{};
+
+	AircraftModelConfiguration.Aerodynamics =
+		AircraftConfiguration
+		.DevelopmentAerodynamicEstimate;
+
+	AircraftModelConfiguration.Powerplant =
+		PowerplantConfiguration;
+
+	AircraftModelConfiguration.GroundReaction =
+		AircraftConfiguration
+		.DevelopmentGroundReactionEstimate;
+
+	const double ClampedFuelFraction =
+		FMath::Clamp(
+			InitialUsableFuelFraction,
+			0.0,
+			1.0);
+
+	AircraftModelConfiguration
+		.InitialUsableFuelKilograms =
+		ClampedFuelFraction
+		* AircraftConfiguration
+		.DevelopmentFuelEstimate
+		.UsableFuelCapacityKilograms;
+
+	// Unreal uses Z-up centimeters.
+	// Core runway position uses NED Down meters.
+	AircraftModelConfiguration
+		.GroundPlaneDownMeters =
+		-RunwayWorldZCentimeters / 100.0;
+
+	if (bStartOnRunway)
+	{
+		const FGroundContactPointConfiguration&
+			NoseGear =
+			AircraftModelConfiguration
+			.GroundReaction.ContactPoints[0];
+
+		const double CompressionMeters =
+			FMath::Clamp(
+				InitialLandingGearCompressionMeters,
+				0.0,
+				0.10);
+
+		// Position the aircraft so the landing-gear contacts
+		// begin with a small spring compression.
+		InitialAircraftState.PositionNedMeters.Z =
+			AircraftModelConfiguration
+			.GroundPlaneDownMeters
+			- NoseGear.PositionBodyMeters.Z
+			+ CompressionMeters;
+
+		InitialAircraftState
+			.VelocityBodyMetersPerSecond =
+			FVector3{};
+
+		InitialAircraftState
+			.AngularRateBodyRadiansPerSecond =
+			FVector3{};
+	}
+	else
+	{
+		InitialAircraftState
+			.VelocityBodyMetersPerSecond.X =
+			FMath::Max(
+				InitialForwardSpeedMetersPerSecond,
+				0.0);
+	}
+
+	const bool bDynamicsConfigured =
+		Simulation.SetDynamicsConfiguration(
+			DynamicsConfiguration);
+
+	const bool bEnvironmentConfigured =
+		Simulation.SetEnvironmentConfiguration(
+			EnvironmentConfiguration);
+
+	const bool bAircraftModelsConfigured =
+		Simulation.SetAircraftModelConfiguration(
+			AircraftModelConfiguration);
+
+	if (!bDynamicsConfigured
+		|| !bEnvironmentConfigured
+		|| !bAircraftModelsConfigured)
+	{
+		Simulation.ClearAircraftModelConfiguration();
+		Simulation.ClearDynamicsConfiguration();
+		Simulation.ClearEnvironmentConfiguration();
+
+		return false;
+	}
+
+	Simulation.Reset(InitialAircraftState);
+
+	return Simulation.IsDynamicsConfigured()
+		&& Simulation.IsEnvironmentConfigured()
+		&& Simulation.IsAircraftModelConfigured()
+		&& Simulation.WasLastDynamicsStepSuccessful();
 }
