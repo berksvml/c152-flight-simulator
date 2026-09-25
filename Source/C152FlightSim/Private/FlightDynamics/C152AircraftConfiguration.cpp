@@ -322,6 +322,7 @@ namespace C152::FlightDynamics
 			&& Propulsion.IsValid()
 			&& DevelopmentMassPropertiesEstimate.IsValid()
 			&& DevelopmentAerodynamicEstimate.IsValid()
+			&& DevelopmentPropulsionEstimate.IsValid()
 			&& DevelopmentFuelEstimate.IsValid()
 			&& DevelopmentGroundReactionEstimate.IsValid();
 	}
