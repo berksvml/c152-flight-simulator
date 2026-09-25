@@ -9,7 +9,7 @@ namespace
 {
 	constexpr double TestToleranceRad = 1.0e-9;
 
-	bool IsNear(
+	bool IsControlSurfaceValueNear(
 		const double Actual,
 		const double Expected)
 	{
@@ -45,7 +45,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Elevator moves five degrees in half a second"),
-		IsNear(
+		IsControlSurfaceValueNear(
 			State.ElevatorRad,
 			DegreesToRadians(5.0)));
 
@@ -79,19 +79,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Elevator is limited to positive 25 degrees"),
-		IsNear(
+		IsControlSurfaceValueNear(
 			PositiveState.ElevatorRad,
 			DegreesToRadians(25.0)));
 
 	TestTrue(
 		TEXT("Aileron is limited to negative 20 degrees"),
-		IsNear(
+		IsControlSurfaceValueNear(
 			PositiveState.AileronRad,
 			DegreesToRadians(-20.0)));
 
 	TestTrue(
 		TEXT("Rudder is limited to positive 23 degrees"),
-		IsNear(
+		IsControlSurfaceValueNear(
 			PositiveState.RudderRad,
 			DegreesToRadians(23.0)));
 
@@ -108,13 +108,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Elevator is limited to negative 18 degrees"),
-		IsNear(
+		IsControlSurfaceValueNear(
 			NegativeState.ElevatorRad,
 			DegreesToRadians(-18.0)));
 
 	TestTrue(
 		TEXT("Rudder is limited to negative 23 degrees"),
-		IsNear(
+		IsControlSurfaceValueNear(
 			NegativeState.RudderRad,
 			DegreesToRadians(-23.0)));
 
@@ -159,7 +159,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Elevator returns from 25 to 15 degrees"),
-		IsNear(
+		IsControlSurfaceValueNear(
 			State.ElevatorRad,
 			DegreesToRadians(15.0)));
 
@@ -187,14 +187,14 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Throttle is limited to one"),
-		IsNear(Model.GetState().Throttle, 1.0));
+		IsControlSurfaceValueNear(Model.GetState().Throttle, 1.0));
 
 	Command.Throttle = -1.0;
 	Model.Update(Command, 0.01);
 
 	TestTrue(
 		TEXT("Throttle is limited to zero"),
-		IsNear(Model.GetState().Throttle, 0.0));
+		IsControlSurfaceValueNear(Model.GetState().Throttle, 0.0));
 
 	return true;
 }

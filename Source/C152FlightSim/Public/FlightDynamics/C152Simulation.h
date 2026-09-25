@@ -1,11 +1,14 @@
 #pragma once
 
+#include "FlightDynamics/AerodynamicModel.h"
 #include "FlightDynamics/AircraftMassProperties.h"
+#include "FlightDynamics/AirDataModel.h"
 #include "FlightDynamics/C152ControlSurfaceModel.h"
 #include "FlightDynamics/FixedStepClock.h"
 #include "FlightDynamics/FlightDynamicsTypes.h"
+#include "FlightDynamics/GroundReactionModel.h"
+#include "FlightDynamics/PowerplantModel.h"
 #include "FlightDynamics/RigidBody6DofModel.h"
-#include "FlightDynamics/AirDataModel.h"
 #include "FlightDynamics/StandardAtmosphere.h"
 #include "FlightDynamics/WindModel.h"
 
@@ -15,14 +18,17 @@ namespace C152::FlightDynamics
 {
     struct FEnvironmentConfiguration
     {
-        // Geopotential altitude of the local NED origin above mean sea level [m].
+        // Geopotential altitude of the local NED origin
+        // above mean sea level [m].
         double OriginGeopotentialAltitudeMeters = 0.0;
 
         // Mean air-mass velocity in Navigation/NED axes [m/s].
         FVector3 WindVelocityNedMetersPerSecond{};
 
-        // Standard deviation of zero-mean turbulence in NED axes [m/s].
-        FVector3 TurbulenceStandardDeviationNedMetersPerSecond{};
+        // Standard deviation of zero-mean turbulence
+        // in Navigation/NED axes [m/s].
+        FVector3
+            TurbulenceStandardDeviationNedMetersPerSecond{};
 
         // Shared first-order turbulence correlation time [s].
         double TurbulenceCorrelationTimeSeconds = 1.0;
@@ -40,6 +46,37 @@ namespace C152::FlightDynamics
             0.0,
             9.80665
         };
+    };
+
+    struct FC152AircraftModelConfiguration
+    {
+        FAerodynamicModelConfiguration Aerodynamics{};
+        FPowerplantModelConfiguration Powerplant{};
+        FGroundReactionModelConfiguration GroundReaction{};
+
+        // Initial usable fuel assigned to the powerplant model [kg].
+        double InitialUsableFuelKilograms = 0.0;
+
+        // Down coordinate of a flat horizontal runway [m].
+        double GroundPlaneDownMeters = 0.0;
+    };
+
+    struct FC152AircraftModelStepOutput
+    {
+        FAtmosphereState Atmosphere{};
+        FAirData AirData{};
+
+        FAerodynamicCoefficients AerodynamicCoefficients{};
+        FPowerplantOutput Powerplant{};
+        FGroundReactionResult GroundReaction{};
+
+        FBodyForcesAndMoments AerodynamicLoads{};
+        FBodyForcesAndMoments PowerplantLoads{};
+        FBodyForcesAndMoments GroundReactionLoads{};
+        FBodyForcesAndMoments TotalBodyLoads{};
+        FAircraftMassProperties MassPropertiesUsed{};
+
+        bool bValid = false;
     };
 
     class FC152Simulation final
@@ -61,8 +98,27 @@ namespace C152::FlightDynamics
         [[nodiscard]]
         bool IsDynamicsConfigured() const;
 
+        // External loads may be used for tests or additional systems.
+        // When aircraft models are enabled, these loads are added
+        // to aerodynamic, powerplant, and ground-reaction loads.
         void SetAppliedBodyLoads(
             const FBodyForcesAndMoments& AppliedLoads);
+
+        [[nodiscard]]
+        bool SetAircraftModelConfiguration(
+            const FC152AircraftModelConfiguration& Configuration);
+
+        void ClearAircraftModelConfiguration();
+
+        [[nodiscard]]
+        bool IsAircraftModelConfigured() const;
+
+        [[nodiscard]]
+        bool SetBrakeCommand(
+            double NewBrakeCommand);
+
+        [[nodiscard]]
+        double GetBrakeCommand() const;
 
         [[nodiscard]]
         std::uint32_t Advance(
@@ -73,7 +129,8 @@ namespace C152::FlightDynamics
         const FAircraftState& GetAircraftState() const;
 
         [[nodiscard]]
-        const FControlSurfaceState& GetControlSurfaceState() const;
+        const FControlSurfaceState&
+            GetControlSurfaceState() const;
 
         [[nodiscard]]
         double GetFixedDeltaSeconds() const;
@@ -105,11 +162,33 @@ namespace C152::FlightDynamics
         const FVector3&
             GetTurbulenceVelocityNedMetersPerSecond() const;
 
+        [[nodiscard]]
+        const FC152AircraftModelStepOutput&
+            GetLastAircraftModelStepOutput() const;
+
+        [[nodiscard]]
+        const FAircraftMassProperties&
+            GetCurrentMassProperties() const;
+
     private:
         [[nodiscard]]
         bool Step(
             const FControlCommand& Command,
             double FixedDeltaSeconds);
+
+        [[nodiscard]]
+        bool TryEvaluateEnvironment(
+            const FAircraftState& State,
+            const FVector3& WindVelocityNedMetersPerSecond,
+            FAtmosphereState& OutAtmosphere,
+            FAirData& OutAirData) const;
+
+        [[nodiscard]]
+        bool ResetPowerplantState();
+
+        static void AddBodyLoads(
+            FBodyForcesAndMoments& InOutTotal,
+            const FBodyForcesAndMoments& LoadsToAdd);
 
         FAircraftState AircraftState{};
 
@@ -117,13 +196,33 @@ namespace C152::FlightDynamics
         FFixedStepClock SimulationClock;
         FRigidBody6DofModel RigidBodyModel;
 
-        FC152SimulationConfiguration DynamicsConfiguration{};
+        FAerodynamicModel AerodynamicModel;
+        FPowerplantModel PowerplantModel;
+        FGroundReactionModel GroundReactionModel;
+
+        FC152SimulationConfiguration
+            DynamicsConfiguration{};
+
+        FAircraftMassProperties CurrentMassProperties{};
+
+        FC152AircraftModelConfiguration
+            AircraftModelConfiguration{};
+
         FBodyForcesAndMoments AppliedBodyLoads{};
-        FEnvironmentConfiguration EnvironmentConfiguration{};
+
+        FEnvironmentConfiguration
+            EnvironmentConfiguration{};
+
+        FC152AircraftModelStepOutput
+            LastAircraftModelStepOutput{};
+
         FWindModel WindModel;
+
+        double BrakeCommand = 0.0;
 
         bool bEnvironmentConfigured = false;
         bool bDynamicsConfigured = false;
+        bool bAircraftModelConfigured = false;
         bool bLastDynamicsStepSuccessful = true;
     };
 }

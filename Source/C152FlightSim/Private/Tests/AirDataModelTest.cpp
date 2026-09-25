@@ -8,7 +8,7 @@
 
 namespace
 {
-    bool IsNear(
+    bool IsAirDataValueNear(
         const double Actual,
         const double Expected,
         const double Tolerance = 1.0e-6)
@@ -52,24 +52,24 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     TestTrue(TEXT("Air data evaluation succeeds"), bSucceeded);
     TestTrue(
         TEXT("True airspeed is 5 m/s"),
-        IsNear(AirData.TrueAirspeedMetersPerSecond, 5.0));
+        IsAirDataValueNear(AirData.TrueAirspeedMetersPerSecond, 5.0));
     TestTrue(
         TEXT("Positive body Z produces positive angle of attack"),
-        IsNear(
+        IsAirDataValueNear(
             AirData.AngleOfAttackRadians,
             0.9272952180016122));
     TestTrue(
         TEXT("Sideslip is zero"),
-        IsNear(AirData.SideslipAngleRadians, 0.0));
+        IsAirDataValueNear(AirData.SideslipAngleRadians, 0.0));
     TestTrue(
         TEXT("Dynamic pressure uses sea-level density"),
-        IsNear(
+        IsAirDataValueNear(
             AirData.DynamicPressurePascals,
             15.3125,
             1.0e-3));
     TestTrue(
         TEXT("Mach is airspeed divided by speed of sound"),
-        IsNear(
+        IsAirDataValueNear(
             AirData.MachNumber,
             5.0 / Atmosphere.SpeedOfSoundMetersPerSecond));
 
@@ -92,11 +92,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
         288.15, 101325.0, 1.225, 340.0
     };
 
-    constexpr double Pi =
+    constexpr double AirDataPi =
         3.14159265358979323846;
 
     const double HalfYaw =
-        Pi / 4.0;
+        AirDataPi / 4.0;
 
     FAircraftState Aircraft{};
     Aircraft.VelocityBodyMetersPerSecond =
@@ -121,21 +121,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     TestTrue(TEXT("Wind evaluation succeeds"), bSucceeded);
     TestTrue(
         TEXT("Eastward wind maps to body forward"),
-        IsNear(
+        IsAirDataValueNear(
             AirData.RelativeVelocityBodyMetersPerSecond.X,
             6.0)
-        && IsNear(
+        && IsAirDataValueNear(
             AirData.RelativeVelocityBodyMetersPerSecond.Y,
             0.0)
-        && IsNear(
+        && IsAirDataValueNear(
             AirData.RelativeVelocityBodyMetersPerSecond.Z,
             0.0));
     TestTrue(
         TEXT("Airspeed differs from ground speed"),
-        IsNear(AirData.TrueAirspeedMetersPerSecond, 6.0));
+        IsAirDataValueNear(AirData.TrueAirspeedMetersPerSecond, 6.0));
     TestTrue(
         TEXT("Dynamic pressure uses relative airspeed"),
-        IsNear(AirData.DynamicPressurePascals, 22.05));
+        IsAirDataValueNear(AirData.DynamicPressurePascals, 22.05));
 
     Aircraft.AttitudeBodyToNed = FQuaternion{};
 
@@ -148,7 +148,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     TestTrue(TEXT("Crosswind evaluation succeeds"), bCrosswindSucceeded);
     TestTrue(
         TEXT("Eastward wind produces negative body Y relative velocity"),
-        IsNear(
+        IsAirDataValueNear(
             AirData.RelativeVelocityBodyMetersPerSecond.Y,
             -4.0));
     TestTrue(

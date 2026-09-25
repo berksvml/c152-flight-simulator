@@ -2,11 +2,13 @@
 
 namespace C152::FlightDynamics
 {
-	constexpr double Pi = 3.14159265358979323846;
-
-	constexpr double DegreesToRadians(const double Degrees)
+	constexpr double DegreesToRadians(
+		const double Degrees)
 	{
-		return Degrees * Pi / 180.0;
+		constexpr double RadiansPerDegree =
+			0.01745329251994329577;
+
+		return Degrees * RadiansPerDegree;
 	}
 
 	struct FControlCommand

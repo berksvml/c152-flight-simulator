@@ -7,10 +7,10 @@
 
 namespace
 {
-	constexpr double Pi =
+	constexpr double FlightDynamicsMathPi =
 		3.14159265358979323846;
 
-	bool IsNear(
+	bool IsFlightDynamicsMathValueNear(
 		const double Actual,
 		const double Expected,
 		const double Tolerance = 1.0e-9)
@@ -19,14 +19,14 @@ namespace
 			<= Tolerance;
 	}
 
-	bool IsVectorNear(
+	bool IsFlightDynamicsMathVectorNear(
 		const C152::FlightDynamics::FVector3& Actual,
 		const C152::FlightDynamics::FVector3& Expected,
 		const double Tolerance = 1.0e-9)
 	{
-		return IsNear(Actual.X, Expected.X, Tolerance)
-			&& IsNear(Actual.Y, Expected.Y, Tolerance)
-			&& IsNear(Actual.Z, Expected.Z, Tolerance);
+		return IsFlightDynamicsMathValueNear(Actual.X, Expected.X, Tolerance)
+			&& IsFlightDynamicsMathValueNear(Actual.Y, Expected.Y, Tolerance)
+			&& IsFlightDynamicsMathValueNear(Actual.Z, Expected.Z, Tolerance);
 	}
 }
 
@@ -48,43 +48,43 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Vector addition is correct"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			First + Second,
 			FVector3{ 5.0, -3.0, 9.0 }));
 
 	TestTrue(
 		TEXT("Vector subtraction is correct"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			First - Second,
 			FVector3{ -3.0, 7.0, -3.0 }));
 
 	TestTrue(
 		TEXT("Vector scalar multiplication is correct"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			2.0 * First,
 			FVector3{ 2.0, 4.0, 6.0 }));
 
 	TestTrue(
 		TEXT("Vector scalar division is correct"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			First / 2.0,
 			FVector3{ 0.5, 1.0, 1.5 }));
 
 	TestTrue(
 		TEXT("Vector dot product is correct"),
-		IsNear(
+		IsFlightDynamicsMathValueNear(
 			Dot(First, Second),
 			12.0));
 
 	TestTrue(
 		TEXT("Vector cross product is correct"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			Cross(First, Second),
 			FVector3{ 27.0, 6.0, -13.0 }));
 
 	TestTrue(
 		TEXT("FRD basis follows the right-hand rule"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			Cross(
 				FVector3{ 1.0, 0.0, 0.0 },
 				FVector3{ 0.0, 1.0, 0.0 }),
@@ -117,11 +117,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Normalized vector has unit length"),
-		IsNear(Vector.Norm(), 1.0));
+		IsFlightDynamicsMathValueNear(Vector.Norm(), 1.0));
 
 	TestTrue(
 		TEXT("Normalized vector direction is preserved"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			Vector,
 			FVector3{ 0.6, 0.8, 0.0 }));
 
@@ -136,7 +136,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Failed normalization returns a zero vector"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			ZeroVector,
 			FVector3{}));
 
@@ -157,7 +157,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	(void)Parameters;
 
 	const double HalfAngle =
-		(Pi * 0.5) * 0.5;
+		(FlightDynamicsMathPi
+			* 0.5) * 0.5;
 
 	const FQuaternion PositiveYaw90{
 		std::cos(HalfAngle),
@@ -172,7 +173,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Positive yaw rotates forward toward east"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			ForwardNed,
 			FVector3{ 0.0, 1.0, 0.0 }));
 
@@ -189,7 +190,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Positive pitch rotates forward toward NED up"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			ForwardAfterPitch,
 			FVector3{ 0.0, 0.0, -1.0 }));
 
@@ -206,7 +207,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Positive roll rotates right toward NED down"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			RightAfterRoll,
 			FVector3{ 0.0, 0.0, 1.0 }));
 
@@ -223,7 +224,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Quaternion vector rotation survives round trip"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			RoundTripVector,
 			OriginalVector));
 
@@ -244,7 +245,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	(void)Parameters;
 
 	const double Yaw45HalfAngle =
-		(Pi * 0.25) * 0.5;
+		(FlightDynamicsMathPi
+			* 0.25) * 0.5;
 
 	const FQuaternion Yaw45{
 		std::cos(Yaw45HalfAngle),
@@ -264,7 +266,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 	TestTrue(
 		TEXT("Two 45 degree yaw rotations produce 90 degrees"),
-		IsVectorNear(
+		IsFlightDynamicsMathVectorNear(
 			RotatedForward,
 			FVector3{ 0.0, 1.0, 0.0 }));
 

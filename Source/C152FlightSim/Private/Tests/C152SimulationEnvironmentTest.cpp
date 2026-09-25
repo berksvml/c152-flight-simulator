@@ -9,7 +9,7 @@
 
 namespace
 {
-    bool IsNear(
+    bool IsSimulationEnvironmentValueNear(
         const double Actual,
         const double Expected,
         const double Tolerance = 1.0e-6)
@@ -17,14 +17,14 @@ namespace
         return std::abs(Actual - Expected) <= Tolerance;
     }
 
-    bool IsVectorNear(
+    bool IsSimulationEnvironmentVectorNear(
         const C152::FlightDynamics::FVector3& Actual,
         const C152::FlightDynamics::FVector3& Expected,
         const double Tolerance = 1.0e-12)
     {
-        return IsNear(Actual.X, Expected.X, Tolerance)
-            && IsNear(Actual.Y, Expected.Y, Tolerance)
-            && IsNear(Actual.Z, Expected.Z, Tolerance);
+        return IsSimulationEnvironmentValueNear(Actual.X, Expected.X, Tolerance)
+            && IsSimulationEnvironmentValueNear(Actual.Y, Expected.Y, Tolerance)
+            && IsSimulationEnvironmentValueNear(Actual.Z, Expected.Z, Tolerance);
     }
 }
 
@@ -78,10 +78,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
         bInitialSampleSucceeded);
     TestTrue(
         TEXT("NED position gives an altitude of 1300 m"),
-        IsNear(Atmosphere.TemperatureKelvin, 279.7));
+        IsSimulationEnvironmentValueNear(Atmosphere.TemperatureKelvin, 279.7));
     TestTrue(
         TEXT("Eastward wind reduces eastward airspeed to 6 m/s"),
-        IsNear(AirData.TrueAirspeedMetersPerSecond, 6.0));
+        IsSimulationEnvironmentValueNear(AirData.TrueAirspeedMetersPerSecond, 6.0));
 
     FC152SimulationConfiguration Dynamics{};
     Dynamics.MassProperties.MassKilograms = 2.0;
@@ -124,16 +124,16 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
         bUpdatedSampleSucceeded);
     TestTrue(
         TEXT("Acceleration raises body forward speed to 12 m/s"),
-        IsNear(
+        IsSimulationEnvironmentValueNear(
             Simulation.GetAircraftState()
             .VelocityBodyMetersPerSecond.X,
             12.0));
     TestTrue(
         TEXT("Updated airspeed accounts for the same wind"),
-        IsNear(AirData.TrueAirspeedMetersPerSecond, 8.0));
+        IsSimulationEnvironmentValueNear(AirData.TrueAirspeedMetersPerSecond, 8.0));
     TestTrue(
         TEXT("Dynamic pressure follows updated airspeed"),
-        IsNear(
+        IsSimulationEnvironmentValueNear(
             AirData.DynamicPressurePascals,
             0.5 * Atmosphere.DensityKilogramsPerCubicMeter * 64.0));
 
@@ -264,7 +264,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
         bSequencesMatch =
             bSequencesMatch
-            && IsVectorNear(
+            && IsSimulationEnvironmentVectorNear(
                 FirstSimulation
                 .GetWindVelocityNedMetersPerSecond(),
                 SecondSimulation
@@ -319,7 +319,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Air data uses the current turbulent wind"),
-        IsVectorNear(
+        IsSimulationEnvironmentVectorNear(
             AirData.RelativeVelocityBodyMetersPerSecond,
             ExpectedRelativeVelocity));
 
