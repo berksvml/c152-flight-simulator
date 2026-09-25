@@ -29,6 +29,9 @@ namespace AerodynamicModelTestData
 		Configuration.ReferenceChordMeters =
 			2.0;
 
+		Configuration.ReferenceSpanMeters =
+			8.0;
+
 		Configuration.LiftCoefficientAtZeroAlpha =
 			0.4;
 
@@ -55,6 +58,51 @@ namespace AerodynamicModelTestData
 
 		Configuration.PitchMomentPerElevatorRadian =
 			0.5;
+
+		Configuration.SideForceSlopePerSideslipRadian =
+			-0.4;
+
+		Configuration.SideForceRollRateDerivative =
+			-0.1;
+
+		Configuration.SideForceYawRateDerivative =
+			0.2;
+
+		Configuration.SideForcePerAileronRadian =
+			0.05;
+
+		Configuration.SideForcePerRudderRadian =
+			-0.3;
+
+		Configuration.RollMomentSlopePerSideslipRadian =
+			-0.1;
+
+		Configuration.RollDampingDerivative =
+			-0.5;
+
+		Configuration.RollYawRateDerivative =
+			0.2;
+
+		Configuration.RollMomentPerAileronRadian =
+			0.25;
+
+		Configuration.RollMomentPerRudderRadian =
+			0.1;
+
+		Configuration.YawMomentSlopePerSideslipRadian =
+			0.2;
+
+		Configuration.YawRollRateDerivative =
+			-0.1;
+
+		Configuration.YawDampingDerivative =
+			-0.4;
+
+		Configuration.YawMomentPerAileronRadian =
+			-0.05;
+
+		Configuration.YawMomentPerRudderRadian =
+			0.3;
 
 		return Configuration;
 	}
@@ -326,6 +374,126 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 		IsAerodynamicModelValueNear(
 			Loads.MomentBodyNewtonMeters.Y,
 			-300.0));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FAerodynamicLateralDirectionalLoadsTest,
+	"C152FlightSim.FlightDynamics."
+	"Aerodynamics.LateralDirectionalLoads",
+	EAutomationTestFlags::EditorContext
+	| EAutomationTestFlags::EngineFilter)
+
+	bool FAerodynamicLateralDirectionalLoadsTest::RunTest(
+		const FString& Parameters)
+{
+	using namespace C152::FlightDynamics;
+
+	(void)Parameters;
+
+	FAerodynamicModel Model;
+
+	TestTrue(
+		TEXT("Test configuration is accepted"),
+		Model.SetConfiguration(
+			AerodynamicModelTestData::
+			CreateTestConfiguration()));
+
+	FAirData AirData{};
+
+	AirData.TrueAirspeedMetersPerSecond =
+		20.0;
+
+	AirData.DynamicPressurePascals =
+		100.0;
+
+	AirData.SideslipAngleRadians =
+		0.1;
+
+	// With b = 8 m and V = 20 m/s:
+	// p_hat = 0.5 * 8 / (2 * 20) = 0.1
+	// r_hat = -0.25 * 8 / (2 * 20) = -0.05
+	const FVector3 AngularRateBody{
+		0.5,
+		0.0,
+		-0.25
+	};
+
+	FControlSurfaceState ControlSurfaceState{};
+
+	ControlSurfaceState.AileronRad =
+		0.2;
+
+	ControlSurfaceState.RudderRad =
+		-0.1;
+
+	FBodyForcesAndMoments Loads{};
+	FAerodynamicCoefficients Coefficients{};
+
+	TestTrue(
+		TEXT(
+			"Lateral-directional aerodynamic evaluation succeeds"),
+		Model.TryEvaluate(
+			AirData,
+			AngularRateBody,
+			ControlSurfaceState,
+			Loads,
+			Coefficients));
+
+	const double ExpectedSideForceCoefficient =
+		-0.02;
+
+	const double ExpectedRollMomentCoefficient =
+		-0.03;
+
+	const double ExpectedYawMomentCoefficient =
+		-0.01;
+
+	TestTrue(
+		TEXT("Side-force coefficient is correct"),
+		AerodynamicModelTestData::
+		IsAerodynamicModelValueNear(
+			Coefficients.SideForceCoefficient,
+			ExpectedSideForceCoefficient));
+
+	TestTrue(
+		TEXT("Roll-moment coefficient is correct"),
+		AerodynamicModelTestData::
+		IsAerodynamicModelValueNear(
+			Coefficients.RollMomentCoefficient,
+			ExpectedRollMomentCoefficient));
+
+	TestTrue(
+		TEXT("Yaw-moment coefficient is correct"),
+		AerodynamicModelTestData::
+		IsAerodynamicModelValueNear(
+			Coefficients.YawMomentCoefficient,
+			ExpectedYawMomentCoefficient));
+
+	// qS = 100 Pa * 10 m^2 = 1000 N.
+	TestTrue(
+		TEXT("Body side force is correct"),
+		AerodynamicModelTestData::
+		IsAerodynamicModelValueNear(
+			Loads.ForceBodyNewtons.Y,
+			-20.0));
+
+	// qSb * Cl = 1000 * 8 * -0.03.
+	TestTrue(
+		TEXT("Rolling moment is correct"),
+		AerodynamicModelTestData::
+		IsAerodynamicModelValueNear(
+			Loads.MomentBodyNewtonMeters.X,
+			-240.0));
+
+	// qSb * Cn = 1000 * 8 * -0.01.
+	TestTrue(
+		TEXT("Yawing moment is correct"),
+		AerodynamicModelTestData::
+		IsAerodynamicModelValueNear(
+			Loads.MomentBodyNewtonMeters.Z,
+			-80.0));
 
 	return true;
 }

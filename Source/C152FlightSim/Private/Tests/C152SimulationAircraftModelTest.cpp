@@ -17,7 +17,7 @@ namespace C152SimulationAircraftModelTestSupport
             <= Tolerance;
     }
 
-    bool IsVectorNear(
+    bool IsSimulationAircraftModelVectorNear(
         const C152::FlightDynamics::FVector3& Actual,
         const C152::FlightDynamics::FVector3& Expected,
         const double Tolerance = 1.0e-9)
@@ -308,13 +308,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Total force equals the sum of model forces"),
-        IsVectorNear(
+        IsSimulationAircraftModelVectorNear(
             Output.TotalBodyLoads.ForceBodyNewtons,
             ExpectedTotalLoads.ForceBodyNewtons));
 
     TestTrue(
         TEXT("Total moment equals the sum of model moments"),
-        IsVectorNear(
+        IsSimulationAircraftModelVectorNear(
             Output.TotalBodyLoads.MomentBodyNewtonMeters,
             ExpectedTotalLoads.MomentBodyNewtonMeters));
 
@@ -415,13 +415,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
     TestTrue(
         TEXT("Ground-case total force equals summed model forces"),
-        IsVectorNear(
+        IsSimulationAircraftModelVectorNear(
             Output.TotalBodyLoads.ForceBodyNewtons,
             ExpectedTotalLoads.ForceBodyNewtons));
 
     TestTrue(
         TEXT("Ground-case total moment equals summed model moments"),
-        IsVectorNear(
+        IsSimulationAircraftModelVectorNear(
             Output.TotalBodyLoads.MomentBodyNewtonMeters,
             ExpectedTotalLoads.MomentBodyNewtonMeters));
 
@@ -550,6 +550,195 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
             .MassKilograms,
             InitialMassKilograms,
             1.0e-12));
+
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FC152SimulationAircraftModelAileronRollResponseTest,
+    "C152FlightSim.FlightDynamics."
+    "Simulation.AircraftModels.AileronRollResponse",
+    EAutomationTestFlags::EditorContext |
+    EAutomationTestFlags::EngineFilter)
+
+    bool FC152SimulationAircraftModelAileronRollResponseTest::RunTest(
+        const FString& Parameters)
+{
+    using namespace C152::FlightDynamics;
+    using namespace
+        C152SimulationAircraftModelTestSupport;
+
+    (void)Parameters;
+
+    FC152Simulation Simulation;
+
+    FAircraftState InitialState{};
+
+    InitialState.VelocityBodyMetersPerSecond =
+        FVector3{
+            30.0,
+            0.0,
+            0.0
+    };
+
+    const bool bConfigurationSucceeded =
+        ConfigureSimulation(
+            Simulation,
+            InitialState,
+            1000.0);
+
+    TestTrue(
+        TEXT("Aileron-response simulation configuration succeeds"),
+        bConfigurationSucceeded);
+
+    if (!bConfigurationSucceeded)
+    {
+        return false;
+    }
+
+    FControlCommand Command{};
+
+    // Positive roll command represents a right-roll command.
+    Command.Roll = 1.0;
+
+    const std::uint32_t StepCount =
+        Simulation.Advance(
+            Command,
+            Simulation.GetFixedDeltaSeconds());
+
+    TestEqual(
+        TEXT("Aileron response executes one fixed step"),
+        StepCount,
+        static_cast<std::uint32_t>(1U));
+
+    TestTrue(
+        TEXT("Aileron-response dynamics step succeeds"),
+        Simulation.WasLastDynamicsStepSuccessful());
+
+    const FControlSurfaceState& SurfaceState =
+        Simulation.GetControlSurfaceState();
+
+    TestTrue(
+        TEXT("Positive roll command produces positive aileron"),
+        SurfaceState.AileronRad > 0.0);
+
+    const FC152AircraftModelStepOutput& Output =
+        Simulation.GetLastAircraftModelStepOutput();
+
+    TestTrue(
+        TEXT("Aileron-response model output is valid"),
+        Output.bValid);
+
+    TestFalse(
+        TEXT("Aileron-response aircraft remains airborne"),
+        Output.GroundReaction.bOnGround);
+
+    TestTrue(
+        TEXT("Positive aileron produces positive rolling moment"),
+        Output.AerodynamicLoads
+        .MomentBodyNewtonMeters.X > 0.0);
+
+    TestTrue(
+        TEXT("Positive rolling moment produces positive roll rate"),
+        Simulation.GetAircraftState()
+        .AngularRateBodyRadiansPerSecond.X > 0.0);
+
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FC152SimulationAircraftModelRudderYawResponseTest,
+    "C152FlightSim.FlightDynamics."
+    "Simulation.AircraftModels.RudderYawResponse",
+    EAutomationTestFlags::EditorContext |
+    EAutomationTestFlags::EngineFilter)
+
+    bool FC152SimulationAircraftModelRudderYawResponseTest::RunTest(
+        const FString& Parameters)
+{
+    using namespace C152::FlightDynamics;
+    using namespace
+        C152SimulationAircraftModelTestSupport;
+
+    (void)Parameters;
+
+    FC152Simulation Simulation;
+
+    FAircraftState InitialState{};
+
+    InitialState.VelocityBodyMetersPerSecond =
+        FVector3{
+            30.0,
+            0.0,
+            0.0
+    };
+
+    const bool bConfigurationSucceeded =
+        ConfigureSimulation(
+            Simulation,
+            InitialState,
+            1000.0);
+
+    TestTrue(
+        TEXT("Rudder-response simulation configuration succeeds"),
+        bConfigurationSucceeded);
+
+    if (!bConfigurationSucceeded)
+    {
+        return false;
+    }
+
+    FControlCommand Command{};
+
+    // Positive yaw command represents a nose-right command.
+    Command.Yaw = 1.0;
+
+    const std::uint32_t StepCount =
+        Simulation.Advance(
+            Command,
+            Simulation.GetFixedDeltaSeconds());
+
+    TestEqual(
+        TEXT("Rudder response executes one fixed step"),
+        StepCount,
+        static_cast<std::uint32_t>(1U));
+
+    TestTrue(
+        TEXT("Rudder-response dynamics step succeeds"),
+        Simulation.WasLastDynamicsStepSuccessful());
+
+    const FControlSurfaceState& SurfaceState =
+        Simulation.GetControlSurfaceState();
+
+    TestTrue(
+        TEXT("Positive yaw command produces positive rudder"),
+        SurfaceState.RudderRad > 0.0);
+
+    const FC152AircraftModelStepOutput& Output =
+        Simulation.GetLastAircraftModelStepOutput();
+
+    TestTrue(
+        TEXT("Rudder-response model output is valid"),
+        Output.bValid);
+
+    TestFalse(
+        TEXT("Rudder-response aircraft remains airborne"),
+        Output.GroundReaction.bOnGround);
+
+    TestTrue(
+        TEXT("Positive rudder produces negative body side force"),
+        Output.AerodynamicLoads
+        .ForceBodyNewtons.Y < 0.0);
+
+    TestTrue(
+        TEXT("Positive rudder produces positive yawing moment"),
+        Output.AerodynamicLoads
+        .MomentBodyNewtonMeters.Z > 0.0);
+
+    TestTrue(
+        TEXT("Positive yawing moment produces positive yaw rate"),
+        Simulation.GetAircraftState()
+        .AngularRateBodyRadiansPerSecond.Z > 0.0);
 
     return true;
 }

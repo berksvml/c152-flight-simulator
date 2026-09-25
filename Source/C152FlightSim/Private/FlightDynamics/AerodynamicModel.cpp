@@ -18,6 +18,7 @@ namespace C152::FlightDynamics
 		const bool bValuesAreFinite =
 			std::isfinite(WingAreaSquareMeters)
 			&& std::isfinite(ReferenceChordMeters)
+			&& std::isfinite(ReferenceSpanMeters)
 			&& std::isfinite(LiftCoefficientAtZeroAlpha)
 			&& std::isfinite(LiftCurveSlopePerRadian)
 			&& std::isfinite(
@@ -29,7 +30,37 @@ namespace C152::FlightDynamics
 			&& std::isfinite(PitchMomentSlopePerRadian)
 			&& std::isfinite(PitchDampingDerivative)
 			&& std::isfinite(
-				PitchMomentPerElevatorRadian);
+				PitchMomentPerElevatorRadian)
+			&& std::isfinite(
+				SideForceSlopePerSideslipRadian)
+			&& std::isfinite(
+				SideForceRollRateDerivative)
+			&& std::isfinite(
+				SideForceYawRateDerivative)
+			&& std::isfinite(
+				SideForcePerAileronRadian)
+			&& std::isfinite(
+				SideForcePerRudderRadian)
+			&& std::isfinite(
+				RollMomentSlopePerSideslipRadian)
+			&& std::isfinite(
+				RollDampingDerivative)
+			&& std::isfinite(
+				RollYawRateDerivative)
+			&& std::isfinite(
+				RollMomentPerAileronRadian)
+			&& std::isfinite(
+				RollMomentPerRudderRadian)
+			&& std::isfinite(
+				YawMomentSlopePerSideslipRadian)
+			&& std::isfinite(
+				YawRollRateDerivative)
+			&& std::isfinite(
+				YawDampingDerivative)
+			&& std::isfinite(
+				YawMomentPerAileronRadian)
+			&& std::isfinite(
+				YawMomentPerRudderRadian);
 
 		if (!bValuesAreFinite)
 		{
@@ -40,6 +71,9 @@ namespace C152::FlightDynamics
 				> AerodynamicModelConstants::
 			MinimumPositiveValue
 			&& ReferenceChordMeters
+				> AerodynamicModelConstants::
+			MinimumPositiveValue
+			&& ReferenceSpanMeters
 				> AerodynamicModelConstants::
 			MinimumPositiveValue
 			&& ZeroLiftDragCoefficient >= 0.0
@@ -102,17 +136,32 @@ namespace C152::FlightDynamics
 			return false;
 		}
 
+		double NormalizedRollRate = 0.0;
 		double NormalizedPitchRate = 0.0;
+		double NormalizedYawRate = 0.0;
 
 		if (AirData.TrueAirspeedMetersPerSecond
 			> AerodynamicModelConstants::
 			MinimumAirspeedMetersPerSecond)
 		{
+			const double TwiceAirspeed =
+				2.0
+				* AirData.TrueAirspeedMetersPerSecond;
+
+			NormalizedRollRate =
+				AngularRateBodyRadiansPerSecond.X
+				* Configuration.ReferenceSpanMeters
+				/ TwiceAirspeed;
+
 			NormalizedPitchRate =
 				AngularRateBodyRadiansPerSecond.Y
 				* Configuration.ReferenceChordMeters
-				/ (2.0
-					* AirData.TrueAirspeedMetersPerSecond);
+				/ TwiceAirspeed;
+
+			NormalizedYawRate =
+				AngularRateBodyRadiansPerSecond.Z
+				* Configuration.ReferenceSpanMeters
+				/ TwiceAirspeed;
 		}
 
 		FAerodynamicCoefficients Coefficients{};
@@ -139,11 +188,53 @@ namespace C152::FlightDynamics
 			+ Configuration.PitchMomentPerElevatorRadian
 			* ControlSurfaceState.ElevatorRad;
 
+		Coefficients.SideForceCoefficient =
+			Configuration.SideForceSlopePerSideslipRadian
+			* AirData.SideslipAngleRadians
+			+ Configuration.SideForceRollRateDerivative
+			* NormalizedRollRate
+			+ Configuration.SideForceYawRateDerivative
+			* NormalizedYawRate
+			+ Configuration.SideForcePerAileronRadian
+			* ControlSurfaceState.AileronRad
+			+ Configuration.SideForcePerRudderRadian
+			* ControlSurfaceState.RudderRad;
+
+		Coefficients.RollMomentCoefficient =
+			Configuration.RollMomentSlopePerSideslipRadian
+			* AirData.SideslipAngleRadians
+			+ Configuration.RollDampingDerivative
+			* NormalizedRollRate
+			+ Configuration.RollYawRateDerivative
+			* NormalizedYawRate
+			+ Configuration.RollMomentPerAileronRadian
+			* ControlSurfaceState.AileronRad
+			+ Configuration.RollMomentPerRudderRadian
+			* ControlSurfaceState.RudderRad;
+
+		Coefficients.YawMomentCoefficient =
+			Configuration.YawMomentSlopePerSideslipRadian
+			* AirData.SideslipAngleRadians
+			+ Configuration.YawRollRateDerivative
+			* NormalizedRollRate
+			+ Configuration.YawDampingDerivative
+			* NormalizedYawRate
+			+ Configuration.YawMomentPerAileronRadian
+			* ControlSurfaceState.AileronRad
+			+ Configuration.YawMomentPerRudderRadian
+			* ControlSurfaceState.RudderRad;
+
 		const bool bCoefficientsAreFinite =
 			std::isfinite(Coefficients.LiftCoefficient)
 			&& std::isfinite(Coefficients.DragCoefficient)
 			&& std::isfinite(
-				Coefficients.PitchMomentCoefficient);
+				Coefficients.SideForceCoefficient)
+			&& std::isfinite(
+				Coefficients.RollMomentCoefficient)
+			&& std::isfinite(
+				Coefficients.PitchMomentCoefficient)
+			&& std::isfinite(
+				Coefficients.YawMomentCoefficient);
 
 		if (!bCoefficientsAreFinite)
 		{
@@ -175,15 +266,22 @@ namespace C152::FlightDynamics
 			-DragNewtons * CosineAlpha
 			+ LiftNewtons * SineAlpha;
 
+		// CY is currently treated as a body-axis side-force
+		// coefficient. Positive force acts toward body-right.
 		Loads.ForceBodyNewtons.Y =
-			0.0;
+			DynamicPressureArea
+			* Coefficients.SideForceCoefficient;
 
 		Loads.ForceBodyNewtons.Z =
 			-DragNewtons * SineAlpha
 			- LiftNewtons * CosineAlpha;
 
+		// Positive moments follow the right-hand rule in FRD:
+		// +X right roll, +Y nose up, +Z nose right.
 		Loads.MomentBodyNewtonMeters.X =
-			0.0;
+			DynamicPressureArea
+			* Configuration.ReferenceSpanMeters
+			* Coefficients.RollMomentCoefficient;
 
 		Loads.MomentBodyNewtonMeters.Y =
 			DynamicPressureArea
@@ -191,7 +289,9 @@ namespace C152::FlightDynamics
 			* Coefficients.PitchMomentCoefficient;
 
 		Loads.MomentBodyNewtonMeters.Z =
-			0.0;
+			DynamicPressureArea
+			* Configuration.ReferenceSpanMeters
+			* Coefficients.YawMomentCoefficient;
 
 		if (!Loads.ForceBodyNewtons.IsFinite()
 			|| !Loads.MomentBodyNewtonMeters.IsFinite())

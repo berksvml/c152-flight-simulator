@@ -373,6 +373,9 @@ namespace C152::FlightDynamics
 			Configuration.Geometry
 			.GetEquivalentRectangularChordMeters();
 
+		Aerodynamics.ReferenceSpanMeters =
+			Configuration.Geometry.ReferenceWingSpanMeters;
+
 		Aerodynamics.LiftCoefficientAtZeroAlpha =
 			0.25;
 
@@ -406,6 +409,59 @@ namespace C152::FlightDynamics
 		Aerodynamics.PitchMomentPerElevatorRadian =
 			1.10;
 
+		// Initial lateral-directional engineering estimates.
+//
+// Positive beta corresponds to positive body-Y air-relative
+// velocity. Positive aileron is a right-roll command and positive
+// rudder is a nose-right command.
+//
+// These derivatives are development values and must later be
+// calibrated against handling-quality and flight-test data.
+
+		Aerodynamics.SideForceSlopePerSideslipRadian =
+			-0.45;
+
+		Aerodynamics.SideForceRollRateDerivative =
+			0.0;
+
+		Aerodynamics.SideForceYawRateDerivative =
+			0.20;
+
+		Aerodynamics.SideForcePerAileronRadian =
+			0.0;
+
+		Aerodynamics.SideForcePerRudderRadian =
+			-0.25;
+
+		Aerodynamics.RollMomentSlopePerSideslipRadian =
+			-0.08;
+
+		Aerodynamics.RollDampingDerivative =
+			-0.50;
+
+		Aerodynamics.RollYawRateDerivative =
+			0.12;
+
+		Aerodynamics.RollMomentPerAileronRadian =
+			0.15;
+
+		Aerodynamics.RollMomentPerRudderRadian =
+			0.02;
+
+		Aerodynamics.YawMomentSlopePerSideslipRadian =
+			0.12;
+
+		Aerodynamics.YawRollRateDerivative =
+			-0.04;
+
+		Aerodynamics.YawDampingDerivative =
+			-0.25;
+
+		Aerodynamics.YawMomentPerAileronRadian =
+			-0.02;
+
+		Aerodynamics.YawMomentPerRudderRadian =
+			0.15;
 		// Development estimate based on the simplified Cessna 152
 		// model documented by Krawczyk et al. (2024),
 		// Aerospace 11(10), 830, Table 3.
