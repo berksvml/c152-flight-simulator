@@ -1,8 +1,21 @@
 # C152FlightSim
 
-An independent C++ and Unreal Engine flight simulation project developed from scratch by **Berk Sevimli**.
+An engine-agnostic C++ flight-simulation core integrated with Unreal Engine 5 for real-time visualization, pilot input, and runtime telemetry. The simulation architecture and numerical models are developed from scratch by **Berk Sevimli**.
 
-> Phases 1–3 of the baseline simulation are complete. The project currently supports deterministic 6DOF rigid-body propagation, atmospheric and air-data modelling, longitudinal and lateral-directional aerodynamics, propulsion and fuel consumption, landing-gear reactions, braking, runway acceleration, takeoff, and controllable free flight.
+![C152FlightSim runway takeoff demonstration](Docs/Media/c152_takeoff_hero.gif)
+
+*Runway acceleration, rotation, and transition to airborne flight using the integrated aerodynamic, propulsion, landing-gear, and 6DOF models.*
+
+## At a Glance
+
+| | |
+|---|---|
+| **Tech** | C++20, Unreal Engine 5.8.2 |
+| **Simulation** | Deterministic 6DOF rigid-body dynamics at 120 Hz |
+| **Models** | Atmosphere, wind, air data, aerodynamics, propulsion, fuel, mass properties, and landing gear |
+| **Architecture** | Engine-agnostic C++ core with an explicit Unreal integration layer |
+| **Verification** | **77 passing automated unit and integration tests** |
+| **Status** | Baseline Phases 1–3 complete; Phase 4 calibration and flight-envelope development planned |
 
 ## Project Overview
 
@@ -295,8 +308,12 @@ C152FlightSim/
 ├── Content/
 │   └── C152FlightSim/
 │       ├── Aircraft/
+│       ├── Environment/
 │       ├── Input/
-│       └── Maps/
+│       ├── Maps/
+│       └── ThirdParty/
+├── Docs/
+│   └── Media/
 ├── Source/
 │   └── C152FlightSim/
 │       ├── Public/
@@ -307,7 +324,8 @@ C152FlightSim/
 │           ├── Integration/
 │           └── Tests/
 ├── C152FlightSim.uproject
-└── README.md
+├── README.md
+└── THIRD_PARTY_ASSETS.md
 ```
 
 ## Build Requirements
@@ -396,9 +414,10 @@ Open `C152FlightSim.uproject` after the build completes.
 - [ ] Expanded ground and landing validation
 - [ ] Regression cases for validated operating points
 
-### Future Visualization and Aircraft Systems
+### Visualization and Aircraft Systems
 
-- [ ] Detailed C152 visual model
+- [x] Licensed C152 visual-model integration
+- [x] Portfolio runway demonstration scene
 - [ ] Control-surface animation
 - [ ] Cockpit instruments
 - [ ] Expanded engine systems
@@ -438,6 +457,12 @@ Reference categories include:
 - Development estimates for propulsion and landing-gear behaviour
 
 Published data, research-derived values, and engineering assumptions are identified separately in the source-code comments.
+
+## Third-Party Assets
+
+The Cessna 152 visual mesh is a licensed third-party asset. Attribution and license information are documented in [`THIRD_PARTY_ASSETS.md`](THIRD_PARTY_ASSETS.md).
+
+The simulation architecture, C++ flight models, numerical integration, Unreal adapters, automated tests, and engineering documentation are independent work developed by Berk Sevimli.
 
 ## Disclaimer
 
