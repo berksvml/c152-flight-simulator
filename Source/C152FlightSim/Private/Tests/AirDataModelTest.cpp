@@ -59,6 +59,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
             AirData.AngleOfAttackRadians,
             0.9272952180016122));
     TestTrue(
+        TEXT("Flight-speed flow angles are valid"),
+        AirData.bFlowAnglesValid);
+    TestTrue(
         TEXT("Sideslip is zero"),
         IsAirDataValueNear(AirData.SideslipAngleRadians, 0.0));
     TestTrue(
@@ -192,7 +195,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
         AirData.TrueAirspeedMetersPerSecond == 0.0
         && AirData.AngleOfAttackRadians == 0.0
         && AirData.SideslipAngleRadians == 0.0
-        && AirData.DynamicPressurePascals == 0.0);
+        && AirData.DynamicPressurePascals == 0.0
+        && !AirData.bFlowAnglesValid);
 
     AirData.TrueAirspeedMetersPerSecond = 123.0;
 
@@ -212,6 +216,73 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     TestTrue(
         TEXT("Rejected input preserves the previous output"),
         AirData.TrueAirspeedMetersPerSecond == 123.0);
+
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FAirDataLowSpeedFlowAnglesTest,
+    "C152FlightSim.FlightDynamics.AirData.LowSpeedFlowAngles",
+    EAutomationTestFlags::EditorContext |
+    EAutomationTestFlags::EngineFilter)
+
+    bool FAirDataLowSpeedFlowAnglesTest::RunTest(
+        const FString& Parameters)
+{
+    using namespace C152::FlightDynamics;
+    (void)Parameters;
+
+    const FAtmosphereState Atmosphere{
+        288.15, 101325.0, 1.225, 340.0
+    };
+
+    FAircraftState Aircraft{};
+
+    // This direction would produce an extreme alpha even though its
+    // dynamic pressure is negligible.
+    Aircraft.VelocityBodyMetersPerSecond =
+        FVector3{ 0.01, 0.02, 0.10 };
+
+    FAirData AirData{};
+
+    TestTrue(
+        TEXT("Low-speed air data evaluation succeeds"),
+        FAirDataModel::TryEvaluate(
+            Aircraft,
+            Atmosphere,
+            FVector3{},
+            AirData));
+
+    TestTrue(
+        TEXT("Low-speed scalar air data remains available"),
+        AirData.TrueAirspeedMetersPerSecond > 0.0
+        && AirData.DynamicPressurePascals > 0.0);
+
+    TestTrue(
+        TEXT("Low-speed flow angles are suppressed"),
+        !AirData.bFlowAnglesValid
+        && AirData.AngleOfAttackRadians == 0.0
+        && AirData.SideslipAngleRadians == 0.0);
+
+    Aircraft.VelocityBodyMetersPerSecond =
+        FVector3{
+            FAirDataModel::
+            MinimumFlowAngleAirspeedMetersPerSecond,
+            0.0,
+            0.0
+        };
+
+    TestTrue(
+        TEXT("Threshold-speed air data evaluation succeeds"),
+        FAirDataModel::TryEvaluate(
+            Aircraft,
+            Atmosphere,
+            FVector3{},
+            AirData));
+
+    TestTrue(
+        TEXT("Threshold-speed flow angles are valid"),
+        AirData.bFlowAnglesValid);
 
     return true;
 }

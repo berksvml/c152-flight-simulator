@@ -14,8 +14,8 @@ An engine-agnostic C++ flight-simulation core integrated with Unreal Engine 5 fo
 | **Simulation** | Deterministic 6DOF rigid-body dynamics at 120 Hz |
 | **Models** | Atmosphere, wind, air data, aerodynamics, propulsion, fuel, mass properties, and landing gear |
 | **Architecture** | Engine-agnostic C++ core with an explicit Unreal integration layer |
-| **Verification** | **77 passing automated unit and integration tests** |
-| **Status** | Baseline Phases 1–3 complete; Phase 4 calibration and flight-envelope development planned |
+| **Verification** | **81 passing automated unit and integration tests** |
+| **Status** | Phase 4 in progress; steady-flight trim solver complete, calibration next |
 
 ## Project Overview
 
@@ -269,7 +269,7 @@ These limitations are intentionally documented so that development estimates are
 
 ## Automated Tests
 
-The project currently contains **77 passing Unreal Automation tests**.
+The project currently contains **81 passing Unreal Automation tests**.
 
 Test coverage includes:
 
@@ -283,7 +283,7 @@ Test coverage includes:
 | Rigid-body 6DOF | Constant force, moment, yaw rate, gravity, and state propagation |
 | Standard atmosphere | Sea-level and troposphere reference values and invalid altitude handling |
 | Wind and turbulence | Steady wind, deterministic turbulence, and validation |
-| Air data | Relative airflow, axis conventions, angle of attack, sideslip, and invalid inputs |
+| Air data | Relative airflow, axis conventions, flow angles, low-speed validity, and invalid inputs |
 | Aircraft configuration | Geometry, mass limits, CG envelope, propulsion references, and validation |
 | Mass balance | Weighted CG calculation, envelope integration, and invalid inputs |
 | Aerodynamics | Configuration, longitudinal loads, damping, and lateral-directional loads |
@@ -291,6 +291,7 @@ Test coverage includes:
 | Fuel | Capacity, consumption, exhaustion, and invalid inputs |
 | Powerplant | Propulsion/fuel coupling and power availability |
 | Ground reaction | Contact geometry, suspension, rolling resistance, braking, and static hold |
+| Steady-flight trim | Input validation and converged level-flight and climb equilibrium solutions |
 | Simulation integration | Environment, aircraft loads, ground contact, fuel-mass coupling, roll response, and yaw response |
 | Unreal adapters | Coordinate, attitude, transform, and pose round-trip conversion |
 
@@ -403,7 +404,7 @@ Open `C152FlightSim.uproject` after the build completes.
 
 ### Phase 4 — Calibration and Flight-Envelope Development
 
-- [ ] Steady-state trim solver
+- [x] Steady-state trim solver
 - [ ] Aerodynamic-coefficient calibration
 - [ ] Propulsion-model calibration
 - [ ] Nonlinear lift and stall behaviour

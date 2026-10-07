@@ -60,8 +60,15 @@ namespace C152::FlightDynamics
         double AngleOfAttack = 0.0;
         double SideslipAngle = 0.0;
 
-        // Flow angles are undefined at zero airspeed.
-        if (TrueAirspeed > 1.0e-6)
+        const bool bFlowAnglesValid =
+            TrueAirspeed
+            >= MinimumFlowAngleAirspeedMetersPerSecond;
+
+        // Flow angles are undefined at zero airspeed and become
+        // dominated by tiny numerical or turbulence components close
+        // to zero. Preserve scalar air data while suppressing those
+        // unstable directions below the documented threshold.
+        if (bFlowAnglesValid)
         {
             // FRD axes: X forward, Y right, Z down.
             AngleOfAttack = std::atan2(
@@ -74,14 +81,30 @@ namespace C152::FlightDynamics
                 1.0));
         }
 
-        OutAirData = FAirData{
-            RelativeVelocityBody,
-            TrueAirspeed,
-            AngleOfAttack,
-            SideslipAngle,
-            DynamicPressure,
-            MachNumber
-        };
+        FAirData Result{};
+
+        Result.RelativeVelocityBodyMetersPerSecond =
+            RelativeVelocityBody;
+
+        Result.TrueAirspeedMetersPerSecond =
+            TrueAirspeed;
+
+        Result.AngleOfAttackRadians =
+            AngleOfAttack;
+
+        Result.SideslipAngleRadians =
+            SideslipAngle;
+
+        Result.DynamicPressurePascals =
+            DynamicPressure;
+
+        Result.MachNumber =
+            MachNumber;
+
+        Result.bFlowAnglesValid =
+            bFlowAnglesValid;
+
+        OutAirData = Result;
 
         return true;
     }
