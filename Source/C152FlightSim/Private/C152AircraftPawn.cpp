@@ -181,18 +181,25 @@ void AC152AircraftPawn::Tick(float DeltaTime)
 				WorldOriginGeopotentialAltitudeMeters
 				- AircraftState.PositionNedMeters.Z;
 
+			const FString FlowAngleText =
+				AirDataSample.bFlowAnglesValid
+				? FString::Printf(
+					TEXT("Alpha: %.1f deg | Beta: %.1f deg"),
+					FMath::RadiansToDegrees(
+						AirDataSample.AngleOfAttackRadians),
+					FMath::RadiansToDegrees(
+						AirDataSample.SideslipAngleRadians))
+				: FString(TEXT("Alpha: N/A | Beta: N/A"));
+
 			DebugText += FString::Printf(
 				TEXT(
 					"\nAtmosphere  Alt: %.1f m | Density: %.3f kg/m^3"
-					"\nAir data  TAS: %.2f m/s | Alpha: %.1f deg | "
-					"Beta: %.1f deg | q: %.1f Pa | Mach: %.3f"),
+					"\nAir data  TAS: %.2f m/s | %s | "
+					"q: %.1f Pa | Mach: %.3f"),
 				AltitudeMeters,
 				AtmosphereSample.DensityKilogramsPerCubicMeter,
 				AirDataSample.TrueAirspeedMetersPerSecond,
-				FMath::RadiansToDegrees(
-					AirDataSample.AngleOfAttackRadians),
-				FMath::RadiansToDegrees(
-					AirDataSample.SideslipAngleRadians),
+				*FlowAngleText,
 				AirDataSample.DynamicPressurePascals,
 				AirDataSample.MachNumber);
 
