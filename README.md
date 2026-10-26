@@ -15,7 +15,15 @@ An engine-agnostic C++ flight-simulation core integrated with Unreal Engine 5 fo
 | **Models** | Atmosphere, wind, air data, aerodynamics, propulsion, fuel, mass properties, and landing gear |
 | **Architecture** | Engine-agnostic C++ core with an explicit Unreal integration layer |
 | **Verification** | **81 passing automated unit and integration tests** |
-| **Status** | Phase 4 in progress; steady-flight trim solver complete, calibration next |
+| **Status** | Stable v0.4.0 portfolio milestone; Phases 1–3 and steady-flight trim complete |
+
+## Development Status
+
+This repository represents the stable **v0.4.0 portfolio milestone** of C152FlightSim.
+
+The baseline simulator developed across Phases 1–3 is complete, and the first Phase 4 increment adds an engine-agnostic steady-flight trim solver. The project currently contains **81 passing automated tests** together with an integrated runway-to-airborne Unreal demonstration.
+
+Active feature development is paused at this milestone. Remaining Phase 4 work requires dedicated aerodynamic and propulsion calibration data, nonlinear-envelope modelling, and systematic performance validation. That work is retained in the roadmap as future scope rather than being represented as completed or validated capability.
 
 ## Project Overview
 
@@ -193,6 +201,15 @@ Attitude is represented by a normalized quaternion describing the active rotatio
 - Fuel exhaustion handling
 - Fuel consumption coupled to current aircraft mass
 
+### Steady-Flight Trim
+
+- Engine-agnostic steady-flight trim solver
+- Level-flight and constant-climb equilibrium cases
+- Simultaneous solution for angle of attack, elevator deflection, and throttle
+- Bounded Newton iterations with a finite-difference Jacobian and line search
+- Explicit input validation, convergence status, and residual reporting
+- Automated level-flight, climb, and invalid-input test coverage
+
 ### Ground Interaction
 
 - Three-point landing-gear contact model
@@ -219,7 +236,7 @@ Attitude is represented by a normalized quaternion describing the active rotatio
 
 ## Current Simulation Status
 
-Phases 1–3 of the baseline simulator are complete.
+Phases 1–3 of the baseline simulator are complete. The first Phase 4 increment adds steady-flight trim solutions for level-flight and climb equilibrium.
 
 The aircraft can currently:
 
@@ -264,6 +281,7 @@ Important limitations include:
 - Ground effect is not yet included.
 - The turbulence model is a seeded first-order Gauss–Markov process, not a certification-grade Dryden or von Kármán implementation.
 - Control feel and handling qualities have not yet been calibrated.
+- Trim results are equilibrium solutions of the current development model and must not be interpreted as validated Cessna 152 trim data.
 
 These limitations are intentionally documented so that development estimates are not presented as validated aircraft data.
 
@@ -402,7 +420,7 @@ Open `C152FlightSim.uproject` after the build completes.
 - [x] Elevator, aileron, and rudder flight response
 - [x] Unreal runtime aircraft-model integration
 
-### Phase 4 — Calibration and Flight-Envelope Development
+### Phase 4 — Calibration and Flight-Envelope Development — Partially Complete
 
 - [x] Steady-state trim solver
 - [ ] Aerodynamic-coefficient calibration
@@ -414,6 +432,8 @@ Open `C152FlightSim.uproject` after the build completes.
 - [ ] Control-response and handling-quality assessment
 - [ ] Expanded ground and landing validation
 - [ ] Regression cases for validated operating points
+
+> Further Phase 4 development is deferred after the v0.4.0 portfolio milestone. The remaining work requires dedicated calibration sources and a formal validation campaign.
 
 ### Visualization and Aircraft Systems
 
@@ -442,7 +462,8 @@ The verification approach includes:
 - Model-to-simulation integration tests
 - Control-command response tests
 - Runtime Unreal integration checks
-- Future trim and performance reference cases
+- Steady-flight trim equilibrium regression cases
+- Future performance reference cases
 
 ## Reference Basis
 
